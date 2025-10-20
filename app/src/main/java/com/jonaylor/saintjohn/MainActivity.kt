@@ -1,5 +1,6 @@
 package com.jonaylor.saintjohn
 
+import android.Manifest
 import android.app.AppOpsManager
 import android.content.Intent
 import android.os.Build
@@ -23,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.view.WindowCompat
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.jonaylor.saintjohn.data.local.PreferencesManager
 import com.jonaylor.saintjohn.domain.model.AppInfo
 import com.jonaylor.saintjohn.presentation.drawer.DrawerScreen
@@ -39,6 +42,7 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var preferencesManager: PreferencesManager
 
+    @OptIn(ExperimentalPermissionsApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -65,8 +69,31 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Request usage stats permission on first launch
+                // Request location permissions
+                val locationPermissionsState = rememberMultiplePermissionsState(
+                    listOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
+
+                // Request calendar permission
+                val calendarPermissionState = rememberMultiplePermissionsState(
+                    listOf(Manifest.permission.READ_CALENDAR)
+                )
+
                 LaunchedEffect(Unit) {
+                    // Request location permissions for weather
+                    if (!locationPermissionsState.allPermissionsGranted) {
+                        locationPermissionsState.launchMultiplePermissionRequest()
+                    }
+
+                    // Request calendar permission
+                    if (!calendarPermissionState.allPermissionsGranted) {
+                        calendarPermissionState.launchMultiplePermissionRequest()
+                    }
+
+                    // Request usage stats permission on first launch
                     if (!hasUsageStatsPermission()) {
                         requestUsageStatsPermission()
                     }

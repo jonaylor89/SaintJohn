@@ -4,9 +4,14 @@ import android.content.Context
 import androidx.room.Room
 import com.jonaylor.saintjohn.data.local.LauncherDatabase
 import com.jonaylor.saintjohn.data.local.MIGRATION_1_2
+import com.jonaylor.saintjohn.data.local.MIGRATION_2_3
+import com.jonaylor.saintjohn.data.local.MIGRATION_3_4
 import com.jonaylor.saintjohn.data.local.PreferencesManager
 import com.jonaylor.saintjohn.data.local.dao.AppPreferenceDao
+import com.jonaylor.saintjohn.data.local.dao.ConversationDao
+import com.jonaylor.saintjohn.data.local.dao.MessageDao
 import com.jonaylor.saintjohn.data.local.dao.NoteDao
+import com.jonaylor.saintjohn.data.local.dao.WeatherDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,7 +31,7 @@ object DatabaseModule {
             LauncherDatabase::class.java,
             "launcher_database"
         )
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -39,5 +44,20 @@ object DatabaseModule {
     @Provides
     fun provideNoteDao(database: LauncherDatabase): NoteDao {
         return database.noteDao()
+    }
+
+    @Provides
+    fun provideWeatherDao(database: LauncherDatabase): WeatherDao {
+        return database.weatherDao()
+    }
+
+    @Provides
+    fun provideConversationDao(database: LauncherDatabase): ConversationDao {
+        return database.conversationDao()
+    }
+
+    @Provides
+    fun provideMessageDao(database: LauncherDatabase): MessageDao {
+        return database.messageDao()
     }
 }

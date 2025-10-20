@@ -79,10 +79,14 @@ dependencies {
     // Biometric
     implementation(libs.biometric)
 
+    // Location
+    implementation(libs.play.services.location)
+
     // Networking
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
     implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
 
     // RSS Parser
     implementation(libs.rome)

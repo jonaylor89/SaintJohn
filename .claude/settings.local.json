@@ -13,7 +13,8 @@
       "Bash(fd:*)",
       "Bash(\"/Users/johannes/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java\" -version)",
       "Bash(export JAVA_HOME=\"/Users/johannes/Applications/Android Studio.app/Contents/jbr/Contents/Home\")",
-      "Bash(adb shell am start:*)"
+      "Bash(adb shell am start:*)",
+      "Bash(adb install:*)"
     ],
     "deny": [],
     "ask": []

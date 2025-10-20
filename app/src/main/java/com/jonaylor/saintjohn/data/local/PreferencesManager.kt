@@ -23,6 +23,10 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
         val MONOCHROME_ENABLED = booleanPreferencesKey("monochrome_enabled")
         val SYSTEM_GRAYSCALE_ENABLED = booleanPreferencesKey("system_grayscale_enabled")
         val FIRST_LAUNCH = booleanPreferencesKey("first_launch")
+        val OPENAI_API_KEY = stringPreferencesKey("openai_api_key")
+        val ANTHROPIC_API_KEY = stringPreferencesKey("anthropic_api_key")
+        val GOOGLE_API_KEY = stringPreferencesKey("google_api_key")
+        val SELECTED_LLM_PROVIDER = stringPreferencesKey("selected_llm_provider")
     }
 
     val themeMode: Flow<String> = context.dataStore.data.map { preferences ->
@@ -62,6 +66,46 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
     suspend fun setFirstLaunch(isFirst: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[FIRST_LAUNCH] = isFirst
+        }
+    }
+
+    val openaiApiKey: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[OPENAI_API_KEY] ?: ""
+    }
+
+    val anthropicApiKey: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[ANTHROPIC_API_KEY] ?: ""
+    }
+
+    val googleApiKey: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[GOOGLE_API_KEY] ?: ""
+    }
+
+    val selectedLLMProvider: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[SELECTED_LLM_PROVIDER] ?: "ANTHROPIC"
+    }
+
+    suspend fun setOpenAIApiKey(key: String) {
+        context.dataStore.edit { preferences ->
+            preferences[OPENAI_API_KEY] = key
+        }
+    }
+
+    suspend fun setAnthropicApiKey(key: String) {
+        context.dataStore.edit { preferences ->
+            preferences[ANTHROPIC_API_KEY] = key
+        }
+    }
+
+    suspend fun setGoogleApiKey(key: String) {
+        context.dataStore.edit { preferences ->
+            preferences[GOOGLE_API_KEY] = key
+        }
+    }
+
+    suspend fun setSelectedLLMProvider(provider: String) {
+        context.dataStore.edit { preferences ->
+            preferences[SELECTED_LLM_PROVIDER] = provider
         }
     }
 }

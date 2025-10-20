@@ -17,10 +17,14 @@
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
 
+    <!-- Declare telephony feature as optional for ChromeOS compatibility -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+
     <!-- Network for weather & RSS -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- Query for launcher apps -->
     <queries>
