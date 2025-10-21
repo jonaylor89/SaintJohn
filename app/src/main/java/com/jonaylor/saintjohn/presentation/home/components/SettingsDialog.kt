@@ -27,6 +27,13 @@ fun SettingsBottomSheet(
     var localAnthropicKey by remember { mutableStateOf(anthropicKey) }
     var localGoogleKey by remember { mutableStateOf(googleKey) }
 
+    // Update local state when props change (e.g., when dialog reopens with new values)
+    LaunchedEffect(openaiKey, anthropicKey, googleKey) {
+        localOpenAIKey = openaiKey
+        localAnthropicKey = anthropicKey
+        localGoogleKey = googleKey
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss
     ) {
