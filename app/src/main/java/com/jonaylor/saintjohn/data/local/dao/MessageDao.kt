@@ -15,6 +15,9 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE conversationId = :conversationId AND role = 'USER' ORDER BY timestamp ASC LIMIT 1")
     suspend fun getFirstUserMessage(conversationId: Long): MessageEntity?
 
+    @Query("DELETE FROM messages WHERE conversationId = :conversationId AND role = 'ASSISTANT' AND content = ''")
+    suspend fun deleteEmptyAssistantMessages(conversationId: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity): Long
 

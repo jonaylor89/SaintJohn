@@ -15,6 +15,7 @@ interface ChatRepository {
     suspend fun getMostRecentConversationId(): Long?
     suspend fun switchToConversation(conversationId: Long)
     suspend fun deleteConversation(conversation: ConversationEntity)
+    suspend fun deleteEmptyAssistantMessages(conversationId: Long)
     suspend fun getAvailableModels(provider: LLMProvider): Result<List<String>>
     suspend fun getSelectedModel(provider: LLMProvider): String
     suspend fun setSelectedModel(provider: LLMProvider, model: String)

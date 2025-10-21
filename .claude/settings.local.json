@@ -17,7 +17,9 @@
       "Bash(adb install:*)",
       "Bash(export JAVA_HOME=\"$HOME/Applications/Android Studio.app/Contents/jbr/Contents/Home\")",
       "Read(//Users/johannes/Repos/keys/**)",
-      "Bash(adb logcat:*)"
+      "Bash(adb logcat:*)",
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(../gradlew assembleDebug:*)"
     ],
     "deny": [],
     "ask": []

@@ -7,6 +7,7 @@ import com.jonaylor.saintjohn.domain.model.LLMProvider
 import com.jonaylor.saintjohn.domain.model.Message
 import com.jonaylor.saintjohn.domain.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +50,8 @@ class ChatViewModel @Inject constructor(
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private var currentConversationId: Long? = null
+    private var sendMessageJob: Job? = null
+    private var messagesCollectionJob: Job? = null
 
     init {
         loadSelectedProvider()
@@ -94,8 +97,12 @@ class ChatViewModel @Inject constructor(
                     )
                 }
 
-                chatRepository.getMessages(id).collect { messages ->
-                    _uiState.value = _uiState.value.copy(messages = messages)
+                // Cancel any existing message collection and start a new one
+                messagesCollectionJob?.cancel()
+                messagesCollectionJob = viewModelScope.launch {
+                    chatRepository.getMessages(id).collect { messages ->
+                        _uiState.value = _uiState.value.copy(messages = messages)
+                    }
                 }
             }
             // If null, we'll start with an empty state (no conversation yet)
@@ -105,7 +112,7 @@ class ChatViewModel @Inject constructor(
     fun sendMessage(content: String) {
         if (content.isBlank()) return
 
-        viewModelScope.launch {
+        sendMessageJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             // Create conversation only when first message is sent
@@ -116,10 +123,13 @@ class ChatViewModel @Inject constructor(
                 )
                 _uiState.value = _uiState.value.copy(currentConversationId = currentConversationId)
 
-                // Start observing messages for this new conversation
+                // Cancel any existing message collection and start observing this new conversation
                 currentConversationId?.let { id ->
-                    chatRepository.getMessages(id).collect { messages ->
-                        _uiState.value = _uiState.value.copy(messages = messages)
+                    messagesCollectionJob?.cancel()
+                    messagesCollectionJob = viewModelScope.launch {
+                        chatRepository.getMessages(id).collect { messages ->
+                            _uiState.value = _uiState.value.copy(messages = messages)
+                        }
                     }
                 }
             }
@@ -136,6 +146,19 @@ class ChatViewModel @Inject constructor(
             )
 
             _uiState.value = _uiState.value.copy(isLoading = false)
+        }
+    }
+
+    fun cancelMessage() {
+        sendMessageJob?.cancel()
+        sendMessageJob = null
+        _uiState.value = _uiState.value.copy(isLoading = false)
+
+        // Clean up any empty "Thinking..." placeholder messages
+        currentConversationId?.let { id ->
+            viewModelScope.launch {
+                chatRepository.deleteEmptyAssistantMessages(id)
+            }
         }
     }
 
@@ -270,9 +293,12 @@ class ChatViewModel @Inject constructor(
                 )
             }
 
-            // Load messages for this conversation
-            chatRepository.getMessages(conversationId).collect { messages ->
-                _uiState.value = _uiState.value.copy(messages = messages)
+            // Cancel existing message collection and start a new one for this conversation
+            messagesCollectionJob?.cancel()
+            messagesCollectionJob = viewModelScope.launch {
+                chatRepository.getMessages(conversationId).collect { messages ->
+                    _uiState.value = _uiState.value.copy(messages = messages)
+                }
             }
         }
     }

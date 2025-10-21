@@ -121,7 +121,7 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
     }
 
     val selectedGoogleModel: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[SELECTED_GOOGLE_MODEL] ?: "gemini-pro"
+        preferences[SELECTED_GOOGLE_MODEL] ?: "gemini-2.5-flash"
     }
 
     suspend fun setSelectedOpenAIModel(model: String) {

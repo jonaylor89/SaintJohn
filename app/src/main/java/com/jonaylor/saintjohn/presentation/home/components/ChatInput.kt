@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,6 +15,7 @@ import androidx.compose.ui.unit.dp
 fun ChatInput(
     onSendMessage: (String) -> Unit,
     isLoading: Boolean,
+    onCancelMessage: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var messageText by remember { mutableStateOf("") }
@@ -51,18 +53,21 @@ fun ChatInput(
 
         IconButton(
             onClick = {
-                if (messageText.isNotBlank()) {
+                if (isLoading) {
+                    onCancelMessage()
+                } else if (messageText.isNotBlank()) {
                     onSendMessage(messageText.trim())
                     messageText = ""
                 }
             },
-            enabled = !isLoading && messageText.isNotBlank(),
+            enabled = isLoading || messageText.isNotBlank(),
             modifier = Modifier.size(48.dp)
         ) {
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Cancel",
+                    tint = MaterialTheme.colorScheme.error
                 )
             } else {
                 Icon(

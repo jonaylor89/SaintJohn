@@ -167,7 +167,10 @@ fun HomeScreen(
                 onSendMessage = { content ->
                     viewModel.sendMessage(content)
                 },
-                isLoading = uiState.isLoading
+                isLoading = uiState.isLoading,
+                onCancelMessage = {
+                    viewModel.cancelMessage()
+                }
             )
         }
 

@@ -6,7 +6,12 @@ import com.jonaylor.saintjohn.data.local.dao.MessageDao
 import com.jonaylor.saintjohn.data.local.entity.ConversationEntity
 import com.jonaylor.saintjohn.data.local.entity.MessageEntity
 import com.google.gson.Gson
+import com.jonaylor.saintjohn.data.remote.GeminiApi
 import com.jonaylor.saintjohn.data.remote.OpenAIApi
+import com.jonaylor.saintjohn.data.remote.dto.GeminiContent
+import com.jonaylor.saintjohn.data.remote.dto.GeminiPart
+import com.jonaylor.saintjohn.data.remote.dto.GeminiRequest
+import com.jonaylor.saintjohn.data.remote.dto.GeminiStreamChunk
 import com.jonaylor.saintjohn.data.remote.dto.OpenAIMessage
 import com.jonaylor.saintjohn.data.remote.dto.OpenAIRequest
 import com.jonaylor.saintjohn.data.remote.dto.OpenAIStreamChunk
@@ -25,7 +30,8 @@ class ChatRepositoryImpl @Inject constructor(
     private val messageDao: MessageDao,
     private val conversationDao: ConversationDao,
     private val preferencesManager: PreferencesManager,
-    private val openAIApi: OpenAIApi
+    private val openAIApi: OpenAIApi,
+    private val geminiApi: GeminiApi
 ) : ChatRepository {
 
     private var currentConversationId: Long? = null
@@ -51,6 +57,10 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun deleteConversation(conversation: ConversationEntity) {
         messageDao.deleteMessagesByConversation(conversation.id)
         conversationDao.deleteConversation(conversation)
+    }
+
+    override suspend fun deleteEmptyAssistantMessages(conversationId: Long) {
+        messageDao.deleteEmptyAssistantMessages(conversationId)
     }
 
     override suspend fun sendMessage(
@@ -127,8 +137,32 @@ class ChatRepositoryImpl @Inject constructor(
                 }
 
                 LLMProvider.GOOGLE -> {
-                    // TODO: Implement Google API
-                    "Google API integration coming soon!"
+                    // Get conversation history for context
+                    val history = messageDao.getMessagesByConversation(conversationId).first()
+
+                    // Convert to Gemini format
+                    val geminiContents = history.map { msg ->
+                        GeminiContent(
+                            parts = listOf(GeminiPart(text = msg.content)),
+                            role = if (msg.role == "USER") "user" else "model"
+                        )
+                    }
+
+                    // Get selected model for this provider
+                    val selectedModel = getSelectedModel(provider)
+
+                    // Make API call
+                    val request = GeminiRequest(contents = geminiContents)
+
+                    val response = geminiApi.generateContent(
+                        model = selectedModel,
+                        apiKey = apiKey,
+                        request = request
+                    )
+
+                    // Extract response content
+                    response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                        ?: throw Exception("No response from Gemini")
                 }
             }
 
@@ -283,8 +317,67 @@ class ChatRepositoryImpl @Inject constructor(
                 }
 
                 LLMProvider.GOOGLE -> {
-                    // TODO: Implement Google streaming
-                    "Google streaming not implemented yet"
+                    // Get conversation history for context
+                    val history = messageDao.getMessagesByConversation(conversationId).first()
+                        .filter { it.id != messageId } // Exclude the placeholder
+
+                    // Convert to Gemini format
+                    val geminiContents = history.map { msg ->
+                        GeminiContent(
+                            parts = listOf(GeminiPart(text = msg.content)),
+                            role = if (msg.role == "USER") "user" else "model"
+                        )
+                    }
+
+                    // Get selected model for this provider
+                    val selectedModel = getSelectedModel(provider)
+
+                    // Make streaming API call
+                    val request = GeminiRequest(contents = geminiContents)
+
+                    val responseBody = geminiApi.streamGenerateContent(
+                        model = selectedModel,
+                        apiKey = apiKey,
+                        request = request
+                    )
+
+                    val fullContent = StringBuilder()
+                    val gson = Gson()
+
+                    // Process stream line by line
+                    responseBody.byteStream().bufferedReader().use { reader ->
+                        reader.lineSequence()
+                            .forEach { line ->
+                                android.util.Log.d("GeminiStream", "Raw line: $line")
+
+                                // Gemini SSE format: lines starting with "data: "
+                                if (line.startsWith("data: ")) {
+                                    val data = line.substring(6) // Remove "data: " prefix
+                                    if (data == "[DONE]") return@forEach
+
+                                    try {
+                                        val chunk = gson.fromJson(data, GeminiStreamChunk::class.java)
+                                        chunk.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text?.let { content ->
+                                            fullContent.append(content)
+
+                                            // Update the message in database in real-time
+                                            messageDao.updateMessage(
+                                                assistantMessage.copy(
+                                                    id = messageId,
+                                                    content = fullContent.toString()
+                                                )
+                                            )
+
+                                            onChunk(content)
+                                        }
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("GeminiStream", "Error parsing chunk: $data", e)
+                                    }
+                                }
+                            }
+                    }
+
+                    fullContent.toString()
                 }
             }
 
@@ -350,11 +443,11 @@ class ChatRepositoryImpl @Inject constructor(
                 }
 
                 LLMProvider.GOOGLE -> {
-                    // TODO: Implement Google models fetch
-                    // For now, return hardcoded list
+                    // Latest Gemini models
                     Result.success(listOf(
-                        "gemini-pro",
-                        "gemini-pro-vision"
+                        "gemini-2.5-pro",      // State-of-the-art reasoning model
+                        "gemini-2.5-flash",    // Best price-performance balance
+                        "gemini-2.0-flash"     // Stable workhorse model
                     ))
                 }
             }
