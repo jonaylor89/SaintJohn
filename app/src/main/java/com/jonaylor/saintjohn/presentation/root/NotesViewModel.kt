@@ -44,11 +44,12 @@ class NotesViewModel @Inject constructor(
             }
         }
 
-    fun addNote(content: String) {
-        if (content.isBlank()) return
+    fun addNote(title: String, content: String = "") {
+        if (title.isBlank() && content.isBlank()) return
 
         viewModelScope.launch {
             val note = Note(
+                title = title.trim(),
                 content = content.trim(),
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis()

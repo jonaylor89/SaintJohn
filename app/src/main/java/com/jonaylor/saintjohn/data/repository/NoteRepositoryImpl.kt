@@ -39,6 +39,7 @@ class NoteRepositoryImpl @Inject constructor(
     private fun NoteEntity.toDomainModel(): Note {
         return Note(
             id = id,
+            title = title,
             content = content,
             createdAt = createdAt,
             updatedAt = updatedAt
@@ -48,6 +49,7 @@ class NoteRepositoryImpl @Inject constructor(
     private fun Note.toEntity(): NoteEntity {
         return NoteEntity(
             id = id,
+            title = title,
             content = content,
             createdAt = createdAt,
             updatedAt = updatedAt

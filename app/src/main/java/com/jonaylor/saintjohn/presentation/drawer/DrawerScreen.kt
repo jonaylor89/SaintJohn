@@ -21,6 +21,13 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -173,34 +180,155 @@ fun CategorizedAppList(
     // State to track which categories are expanded (all collapsed by default)
     val expandedCategories = remember { mutableStateMapOf<AppCategory, Boolean>() }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
-    ) {
-        categorizedApps.forEach { (category, apps) ->
-            if (apps.isNotEmpty()) {
-                val isExpanded = expandedCategories[category] ?: false
+    // Check if all categories are currently expanded
+    val allExpanded by remember {
+        derivedStateOf {
+            categorizedApps.keys.isNotEmpty() &&
+            categorizedApps.keys.all { expandedCategories[it] == true }
+        }
+    }
 
-                item(key = "header_$category") {
-                    CategoryHeader(
-                        category = category,
-                        apps = apps,
-                        isExpanded = isExpanded,
-                        onToggle = {
-                            expandedCategories[category] = !isExpanded
+    var pullOffset by remember { mutableStateOf(0f) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var hasTriggered by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val view = LocalView.current
+    val listState = rememberLazyListState()
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragStart = {
+                        hasTriggered = false
+                    },
+                    onDragEnd = {
+                        if (pullOffset > 150f && !isRefreshing && !hasTriggered) {
+                            isRefreshing = true
+                            hasTriggered = true
+                            view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM)
+
+                            // Toggle all categories
+                            val newState = !allExpanded
+                            categorizedApps.keys.forEach { category ->
+                                expandedCategories[category] = newState
+                            }
+                            coroutineScope.launch {
+                                delay(300)
+                                isRefreshing = false
+                                pullOffset = 0f
+                                hasTriggered = false
+                            }
+                        } else {
+                            coroutineScope.launch {
+                                // Animate back
+                                while (pullOffset > 0f) {
+                                    pullOffset = (pullOffset - 20f).coerceAtLeast(0f)
+                                    delay(16)
+                                }
+                            }
                         }
-                    )
-                }
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        // Only allow pull when at top of list
+                        val isAtTop = !listState.canScrollBackward
+                        if (dragAmount > 0 && !isRefreshing && isAtTop) {
+                            pullOffset = (pullOffset + dragAmount * 0.5f).coerceAtMost(250f)
 
-                // Only show apps if category is expanded
-                if (isExpanded) {
-                    item(key = "grid_$category") {
-                        AppGrid(
-                            apps = apps,
+                            // Haptic at threshold
+                            if (pullOffset >= 150f && !hasTriggered) {
+                                view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                                hasTriggered = true
+                            } else if (pullOffset < 150f && hasTriggered) {
+                                hasTriggered = false
+                            }
+
+                            change.consume()
+                        }
+                    }
+                )
+            }
+    ) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = (16 + pullOffset).dp, bottom = 8.dp)
+        ) {
+            categorizedApps.forEach { (category, apps) ->
+                if (apps.isNotEmpty()) {
+                    val isExpanded = expandedCategories[category] ?: false
+
+                    item(key = "header_$category") {
+                        CategoryHeader(
                             category = category,
-                            onAppClick = onAppClick,
-                            onAppLongClick = onAppLongClick
+                            apps = apps,
+                            isExpanded = isExpanded,
+                            onToggle = {
+                                expandedCategories[category] = !isExpanded
+                            }
                         )
+                    }
+
+                    // Only show apps if category is expanded
+                    if (isExpanded) {
+                        item(key = "grid_$category") {
+                            AppGrid(
+                                apps = apps,
+                                category = category,
+                                onAppClick = onAppClick,
+                                onAppLongClick = onAppLongClick
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Pull indicator overlay
+        if (pullOffset > 20f || isRefreshing) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = pullOffset.dp)
+                    .height(60.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .padding(4.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shadowElevation = if (pullOffset >= 150f) 8.dp else 4.dp,
+                    tonalElevation = 2.dp
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isRefreshing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            val rotation by animateFloatAsState(
+                                targetValue = (pullOffset / 150f * 180f).coerceAtMost(180f),
+                                label = "arrow_rotation"
+                            )
+                            Text(
+                                text = if (allExpanded) "▼" else "▲",
+                                fontSize = 20.sp,
+                                color = if (pullOffset >= 150f)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.rotate(rotation)
+                            )
+                        }
                     }
                 }
             }
@@ -283,7 +411,6 @@ fun CategoryHeader(
         if (totalUsageTime > 0) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                 modifier = Modifier.padding(start = 8.dp)
             ) {
                 Text(

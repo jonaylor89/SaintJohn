@@ -54,7 +54,7 @@ fun RootScreen(
         NotesCard(
             notes = notesUiState.notes,
             isLoading = notesUiState.isLoading,
-            onAddNote = { content -> notesViewModel.addNote(content) },
+            onAddNote = { title, content -> notesViewModel.addNote(title, content) },
             onUpdateNote = { note -> notesViewModel.updateNote(note) },
             onDeleteNote = { note -> notesViewModel.deleteNote(note) },
             modifier = Modifier.padding(bottom = 16.dp)

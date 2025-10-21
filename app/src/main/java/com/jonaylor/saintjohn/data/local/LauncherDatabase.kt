@@ -66,6 +66,13 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add title column to notes table with default empty string
+        database.execSQL("ALTER TABLE notes ADD COLUMN title TEXT NOT NULL DEFAULT ''")
+    }
+}
+
 @Database(
     entities = [
         AppPreferenceEntity::class,
@@ -74,7 +81,7 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         ConversationEntity::class,
         MessageEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class LauncherDatabase : RoomDatabase() {

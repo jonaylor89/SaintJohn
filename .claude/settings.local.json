@@ -15,7 +15,9 @@
       "Bash(export JAVA_HOME=\"/Users/johannes/Applications/Android Studio.app/Contents/jbr/Contents/Home\")",
       "Bash(adb shell am start:*)",
       "Bash(adb install:*)",
-      "Bash(export JAVA_HOME=\"$HOME/Applications/Android Studio.app/Contents/jbr/Contents/Home\")"
+      "Bash(export JAVA_HOME=\"$HOME/Applications/Android Studio.app/Contents/jbr/Contents/Home\")",
+      "Read(//Users/johannes/Repos/keys/**)",
+      "Bash(adb logcat:*)"
     ],
     "deny": [],
     "ask": []
