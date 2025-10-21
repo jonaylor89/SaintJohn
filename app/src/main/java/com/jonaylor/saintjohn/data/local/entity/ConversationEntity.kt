@@ -9,6 +9,7 @@ data class ConversationEntity(
     val id: Long = 0,
     val title: String,
     val provider: String,
+    val model: String = "",
     val createdAt: Long,
     val updatedAt: Long
 )

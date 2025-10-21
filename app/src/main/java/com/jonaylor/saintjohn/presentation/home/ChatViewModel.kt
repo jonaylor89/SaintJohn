@@ -23,6 +23,11 @@ data class ModelInfo(
     val isLocked: Boolean
 )
 
+data class ConversationWithCount(
+    val conversation: com.jonaylor.saintjohn.data.local.entity.ConversationEntity,
+    val messageCount: Int
+)
+
 data class ChatUiState(
     val messages: List<Message> = emptyList(),
     val isLoading: Boolean = false,
@@ -30,7 +35,7 @@ data class ChatUiState(
     val selectedModel: String = "",
     val availableModels: List<ModelInfo> = emptyList(),
     val isLoadingModels: Boolean = false,
-    val conversations: List<com.jonaylor.saintjohn.data.local.entity.ConversationEntity> = emptyList(),
+    val conversations: List<ConversationWithCount> = emptyList(),
     val currentConversationId: Long? = null
 )
 
@@ -71,7 +76,24 @@ class ChatViewModel @Inject constructor(
             // Try to get the most recent conversation with messages
             currentConversationId = chatRepository.getMostRecentConversationId()
             currentConversationId?.let { id ->
-                _uiState.value = _uiState.value.copy(currentConversationId = id)
+                // Load the conversation to get its provider and model
+                val conversations = chatRepository.getAllConversations().first()
+                val conversation = conversations.find { it.id == id }
+
+                conversation?.let {
+                    val provider = try {
+                        LLMProvider.valueOf(it.provider)
+                    } catch (e: Exception) {
+                        LLMProvider.ANTHROPIC
+                    }
+
+                    _uiState.value = _uiState.value.copy(
+                        currentConversationId = id,
+                        selectedProvider = provider,
+                        selectedModel = it.model
+                    )
+                }
+
                 chatRepository.getMessages(id).collect { messages ->
                     _uiState.value = _uiState.value.copy(messages = messages)
                 }
@@ -88,7 +110,10 @@ class ChatViewModel @Inject constructor(
 
             // Create conversation only when first message is sent
             if (currentConversationId == null) {
-                currentConversationId = chatRepository.createNewConversation(_uiState.value.selectedProvider)
+                currentConversationId = chatRepository.createNewConversation(
+                    _uiState.value.selectedProvider,
+                    _uiState.value.selectedModel
+                )
                 _uiState.value = _uiState.value.copy(currentConversationId = currentConversationId)
 
                 // Start observing messages for this new conversation
@@ -213,7 +238,11 @@ class ChatViewModel @Inject constructor(
     private fun loadConversations() {
         viewModelScope.launch {
             chatRepository.getAllConversations().collect { conversations ->
-                _uiState.value = _uiState.value.copy(conversations = conversations)
+                val conversationsWithCounts = conversations.map { conversation ->
+                    val count = chatRepository.getMessageCount(conversation.id)
+                    ConversationWithCount(conversation, count)
+                }
+                _uiState.value = _uiState.value.copy(conversations = conversationsWithCounts)
             }
         }
     }
@@ -222,7 +251,24 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             chatRepository.switchToConversation(conversationId)
             currentConversationId = conversationId
-            _uiState.value = _uiState.value.copy(currentConversationId = conversationId)
+
+            // Load the conversation to get its provider and model
+            val conversations = chatRepository.getAllConversations().first()
+            val conversation = conversations.find { it.id == conversationId }
+
+            conversation?.let {
+                val provider = try {
+                    LLMProvider.valueOf(it.provider)
+                } catch (e: Exception) {
+                    LLMProvider.ANTHROPIC
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    currentConversationId = conversationId,
+                    selectedProvider = provider,
+                    selectedModel = it.model
+                )
+            }
 
             // Load messages for this conversation
             chatRepository.getMessages(conversationId).collect { messages ->
@@ -231,11 +277,11 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun deleteConversation(conversation: com.jonaylor.saintjohn.data.local.entity.ConversationEntity) {
+    fun deleteConversation(conversationWithCount: ConversationWithCount) {
         viewModelScope.launch {
-            chatRepository.deleteConversation(conversation)
+            chatRepository.deleteConversation(conversationWithCount.conversation)
             // If we deleted the current conversation, create a new one
-            if (conversation.id == currentConversationId) {
+            if (conversationWithCount.conversation.id == currentConversationId) {
                 newConversation()
             }
         }

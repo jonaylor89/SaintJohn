@@ -21,6 +21,9 @@ interface ConversationDao {
     @Update
     suspend fun updateConversation(conversation: ConversationEntity)
 
+    @Query("UPDATE conversations SET title = :title WHERE id = :conversationId")
+    suspend fun updateConversationTitle(conversationId: Long, title: String)
+
     @Delete
     suspend fun deleteConversation(conversation: ConversationEntity)
 

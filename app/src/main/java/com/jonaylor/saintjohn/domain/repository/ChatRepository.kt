@@ -8,9 +8,10 @@ import kotlinx.coroutines.flow.Flow
 interface ChatRepository {
     fun getMessages(conversationId: Long): Flow<List<Message>>
     fun getAllConversations(): Flow<List<ConversationEntity>>
+    suspend fun getMessageCount(conversationId: Long): Int
     suspend fun sendMessage(conversationId: Long, content: String, provider: LLMProvider): Result<Message>
     suspend fun sendMessageStreaming(conversationId: Long, content: String, provider: LLMProvider, onChunk: (String) -> Unit): Result<Message>
-    suspend fun createNewConversation(provider: LLMProvider): Long
+    suspend fun createNewConversation(provider: LLMProvider, model: String): Long
     suspend fun getMostRecentConversationId(): Long?
     suspend fun switchToConversation(conversationId: Long)
     suspend fun deleteConversation(conversation: ConversationEntity)

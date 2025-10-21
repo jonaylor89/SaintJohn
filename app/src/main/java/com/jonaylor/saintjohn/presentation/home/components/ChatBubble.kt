@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -59,20 +60,22 @@ fun ChatBubble(
                 if (message.role == MessageRole.ASSISTANT && message.content.isEmpty() && !message.isError) {
                     ThinkingAnimation()
                 } else {
-                    Text(
-                        text = message.content,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = when (message.role) {
-                            MessageRole.USER -> MaterialTheme.colorScheme.onPrimaryContainer
-                            MessageRole.ASSISTANT -> if (message.isError) {
-                                MaterialTheme.colorScheme.onErrorContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                            MessageRole.SYSTEM -> MaterialTheme.colorScheme.onSecondaryContainer
-                        },
-                        fontSize = 14.sp
-                    )
+                    SelectionContainer {
+                        Text(
+                            text = message.content,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = when (message.role) {
+                                MessageRole.USER -> MaterialTheme.colorScheme.onPrimaryContainer
+                                MessageRole.ASSISTANT -> if (message.isError) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                                MessageRole.SYSTEM -> MaterialTheme.colorScheme.onSecondaryContainer
+                            },
+                            fontSize = 14.sp
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))

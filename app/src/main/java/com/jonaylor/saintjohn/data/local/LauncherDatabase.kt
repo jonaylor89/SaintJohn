@@ -73,6 +73,13 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add model column to conversations table with default empty string
+        database.execSQL("ALTER TABLE conversations ADD COLUMN model TEXT NOT NULL DEFAULT ''")
+    }
+}
+
 @Database(
     entities = [
         AppPreferenceEntity::class,
@@ -81,7 +88,7 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         ConversationEntity::class,
         MessageEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class LauncherDatabase : RoomDatabase() {

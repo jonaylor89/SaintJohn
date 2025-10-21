@@ -17,16 +17,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jonaylor.saintjohn.data.local.entity.ConversationEntity
+import com.jonaylor.saintjohn.presentation.home.ConversationWithCount
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationHistoryBottomSheet(
-    conversations: List<ConversationEntity>,
+    conversations: List<ConversationWithCount>,
     currentConversationId: Long?,
     onConversationSelected: (Long) -> Unit,
-    onConversationDeleted: (ConversationEntity) -> Unit,
+    onConversationDeleted: (ConversationWithCount) -> Unit,
     onDismiss: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -36,7 +37,7 @@ fun ConversationHistoryBottomSheet(
             conversations
         } else {
             conversations.filter {
-                it.title.contains(searchQuery, ignoreCase = true)
+                it.conversation.title.contains(searchQuery, ignoreCase = true)
             }
         }
     }
@@ -122,15 +123,15 @@ fun ConversationHistoryBottomSheet(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(filteredConversations, key = { it.id }) { conversation ->
+                    items(filteredConversations, key = { it.conversation.id }) { conversationWithCount ->
                         ConversationItem(
-                            conversation = conversation,
-                            isSelected = conversation.id == currentConversationId,
+                            conversationWithCount = conversationWithCount,
+                            isSelected = conversationWithCount.conversation.id == currentConversationId,
                             onClick = {
-                                onConversationSelected(conversation.id)
+                                onConversationSelected(conversationWithCount.conversation.id)
                                 onDismiss()
                             },
-                            onDelete = { onConversationDeleted(conversation) }
+                            onDelete = { onConversationDeleted(conversationWithCount) }
                         )
                     }
                 }
@@ -142,12 +143,14 @@ fun ConversationHistoryBottomSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConversationItem(
-    conversation: ConversationEntity,
+    conversationWithCount: ConversationWithCount,
     isSelected: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    val conversation = conversationWithCount.conversation
+    val messageCount = conversationWithCount.messageCount
 
     Surface(
         modifier = Modifier
@@ -172,7 +175,7 @@ private fun ConversationItem(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = conversation.title,
+                    text = "${conversation.title} ($messageCount)",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (isSelected) {

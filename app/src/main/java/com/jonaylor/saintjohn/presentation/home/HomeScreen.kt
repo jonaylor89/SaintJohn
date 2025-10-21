@@ -1,18 +1,23 @@
 package com.jonaylor.saintjohn.presentation.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jonaylor.saintjohn.presentation.home.components.ChatBubble
@@ -33,6 +38,7 @@ fun HomeScreen(
 
     var showSettings by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
+    var showModelSelector by remember { mutableStateOf(false) }
     var openaiKey by remember { mutableStateOf("") }
     var anthropicKey by remember { mutableStateOf("") }
     var googleKey by remember { mutableStateOf("") }
@@ -77,20 +83,31 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CombinedModelSelector(
-                        selectedProvider = uiState.selectedProvider,
-                        selectedModel = uiState.selectedModel,
-                        availableModels = uiState.availableModels,
-                        isLoadingModels = uiState.isLoadingModels,
-                        onModelSelected = { viewModel.selectModel(it) },
-                        onLoadModels = { viewModel.loadAvailableModels() }
-                    )
+                    // Always display current model as read-only
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Text(
+                            text = if (uiState.selectedModel.isNotEmpty()) {
+                                "${uiState.selectedProvider.displayName} - ${uiState.selectedModel}"
+                            } else {
+                                uiState.selectedProvider.displayName
+                            },
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IconButton(onClick = { viewModel.newConversation() }) {
+                    IconButton(onClick = {
+                        showModelSelector = true
+                        viewModel.loadAvailableModels()
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "New Conversation",
@@ -186,6 +203,187 @@ fun HomeScreen(
                 },
                 onDismiss = { showHistory = false }
             )
+        }
+
+        // Model Selector Bottom Sheet (for new conversations)
+        if (showModelSelector) {
+            ModelSelectorBottomSheet(
+                selectedModel = uiState.selectedModel,
+                availableModels = uiState.availableModels,
+                isLoadingModels = uiState.isLoadingModels,
+                onModelSelected = { modelInfo ->
+                    viewModel.selectModel(modelInfo)
+                    viewModel.newConversation()
+                    showModelSelector = false
+                },
+                onLoadModels = { viewModel.loadAvailableModels() },
+                onDismiss = { showModelSelector = false }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ModelSelectorBottomSheet(
+    selectedModel: String,
+    availableModels: List<ModelInfo>,
+    isLoadingModels: Boolean,
+    onModelSelected: (ModelInfo) -> Unit,
+    onLoadModels: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Select Model",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                TextButton(onClick = onLoadModels) {
+                    Text("Refresh")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (isLoadingModels) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (availableModels.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "No models available",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(onClick = onLoadModels) {
+                            Text("Try Again")
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(availableModels) { modelInfo ->
+                        ModelItem(
+                            modelInfo = modelInfo,
+                            isSelected = modelInfo.name == selectedModel,
+                            onClick = {
+                                if (!modelInfo.isLocked) {
+                                    onModelSelected(modelInfo)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun ModelItem(
+    modelInfo: ModelInfo,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !modelInfo.isLocked, onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = if (isSelected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else if (modelInfo.isLocked) {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = modelInfo.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else if (modelInfo.isLocked) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+                Text(
+                    text = modelInfo.provider.displayName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    } else if (modelInfo.isLocked) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    }
+                )
+            }
+
+            if (modelInfo.isLocked) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Locked - API key required",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(20.dp)
+                )
+            } else if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
     }
 }

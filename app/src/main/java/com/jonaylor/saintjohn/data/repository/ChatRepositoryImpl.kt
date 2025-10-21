@@ -40,6 +40,10 @@ class ChatRepositoryImpl @Inject constructor(
         return conversationDao.getAllConversations()
     }
 
+    override suspend fun getMessageCount(conversationId: Long): Int {
+        return messageDao.getMessageCount(conversationId)
+    }
+
     override suspend fun switchToConversation(conversationId: Long) {
         currentConversationId = conversationId
     }
@@ -169,6 +173,17 @@ class ChatRepositoryImpl @Inject constructor(
             )
             messageDao.insertMessage(userMessage)
 
+            // Update conversation title if this is the first user message
+            val messageCount = messageDao.getMessageCount(conversationId)
+            if (messageCount == 1) { // Only the user message we just inserted
+                val preview = if (content.length > 20) {
+                    content.take(20).trim() + "..."
+                } else {
+                    content.trim()
+                }
+                conversationDao.updateConversationTitle(conversationId, preview)
+            }
+
             // Get API key
             val apiKey = when (provider) {
                 LLMProvider.OPENAI -> preferencesManager.openaiApiKey.first()
@@ -291,10 +306,11 @@ class ChatRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun createNewConversation(provider: LLMProvider): Long {
+    override suspend fun createNewConversation(provider: LLMProvider, model: String): Long {
         val conversation = ConversationEntity(
             title = "New Chat",
             provider = provider.name,
+            model = model,
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
         )
