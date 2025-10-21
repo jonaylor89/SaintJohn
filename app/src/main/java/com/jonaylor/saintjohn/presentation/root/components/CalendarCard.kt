@@ -23,13 +23,12 @@ import java.util.*
 fun CalendarCard(
     events: List<CalendarEvent>,
     isLoading: Boolean,
-    onRefresh: () -> Unit,
+    onEventClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onRefresh),
+            .fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -92,7 +91,10 @@ fun CalendarCard(
                         if (index > 0) {
                             Spacer(modifier = Modifier.height(12.dp))
                         }
-                        CalendarEventItem(event = event)
+                        CalendarEventItem(
+                            event = event,
+                            onClick = { onEventClick(event.id) }
+                        )
                     }
                 }
             }
@@ -101,9 +103,15 @@ fun CalendarCard(
 }
 
 @Composable
-private fun CalendarEventItem(event: CalendarEvent) {
+private fun CalendarEventItem(
+    event: CalendarEvent,
+    onClick: () -> Unit
+) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Time indicator

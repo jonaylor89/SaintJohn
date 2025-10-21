@@ -184,7 +184,7 @@ fun CategorizedAppList(
     val allExpanded by remember {
         derivedStateOf {
             categorizedApps.keys.isNotEmpty() &&
-            categorizedApps.keys.all { expandedCategories[it] == true }
+                    categorizedApps.keys.all { expandedCategories[it] == true }
         }
     }
 
@@ -253,7 +253,12 @@ fun CategorizedAppList(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = (16 + pullOffset).dp, bottom = 8.dp)
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = (16 + pullOffset).dp,
+                bottom = 8.dp
+            )
         ) {
             categorizedApps.forEach { (category, apps) ->
                 if (apps.isNotEmpty()) {
@@ -409,19 +414,14 @@ fun CategoryHeader(
 
         // Right side: Usage time widget
         if (totalUsageTime > 0) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.padding(start = 8.dp)
-            ) {
-                Text(
-                    text = formatUsageTime(totalUsageTime),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    fontSize = 13.sp
-                )
-            }
+            Text(
+                text = formatUsageTime(totalUsageTime),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                fontSize = 13.sp
+            )
         }
     }
 }

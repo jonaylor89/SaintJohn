@@ -19,7 +19,9 @@
       "Read(//Users/johannes/Repos/keys/**)",
       "Bash(adb logcat:*)",
       "WebFetch(domain:ai.google.dev)",
-      "Bash(../gradlew assembleDebug:*)"
+      "Bash(../gradlew assembleDebug:*)",
+      "Bash(aapt dump:*)",
+      "Bash(unzip:*)"
     ],
     "deny": [],
     "ask": []
