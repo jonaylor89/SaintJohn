@@ -27,6 +27,9 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
         val ANTHROPIC_API_KEY = stringPreferencesKey("anthropic_api_key")
         val GOOGLE_API_KEY = stringPreferencesKey("google_api_key")
         val SELECTED_LLM_PROVIDER = stringPreferencesKey("selected_llm_provider")
+        val SELECTED_OPENAI_MODEL = stringPreferencesKey("selected_openai_model")
+        val SELECTED_ANTHROPIC_MODEL = stringPreferencesKey("selected_anthropic_model")
+        val SELECTED_GOOGLE_MODEL = stringPreferencesKey("selected_google_model")
     }
 
     val themeMode: Flow<String> = context.dataStore.data.map { preferences ->
@@ -106,6 +109,36 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
     suspend fun setSelectedLLMProvider(provider: String) {
         context.dataStore.edit { preferences ->
             preferences[SELECTED_LLM_PROVIDER] = provider
+        }
+    }
+
+    val selectedOpenAIModel: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[SELECTED_OPENAI_MODEL] ?: "gpt-4o-mini"
+    }
+
+    val selectedAnthropicModel: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[SELECTED_ANTHROPIC_MODEL] ?: "claude-3-5-sonnet-20241022"
+    }
+
+    val selectedGoogleModel: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[SELECTED_GOOGLE_MODEL] ?: "gemini-pro"
+    }
+
+    suspend fun setSelectedOpenAIModel(model: String) {
+        context.dataStore.edit { preferences ->
+            preferences[SELECTED_OPENAI_MODEL] = model
+        }
+    }
+
+    suspend fun setSelectedAnthropicModel(model: String) {
+        context.dataStore.edit { preferences ->
+            preferences[SELECTED_ANTHROPIC_MODEL] = model
+        }
+    }
+
+    suspend fun setSelectedGoogleModel(model: String) {
+        context.dataStore.edit { preferences ->
+            preferences[SELECTED_GOOGLE_MODEL] = model
         }
     }
 }

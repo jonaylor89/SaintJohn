@@ -11,15 +11,27 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class ModelInfo(
+    val name: String,
+    val provider: LLMProvider,
+    val isLocked: Boolean
+)
+
 data class ChatUiState(
     val messages: List<Message> = emptyList(),
     val isLoading: Boolean = false,
-    val selectedProvider: LLMProvider = LLMProvider.ANTHROPIC
+    val selectedProvider: LLMProvider = LLMProvider.ANTHROPIC,
+    val selectedModel: String = "",
+    val availableModels: List<ModelInfo> = emptyList(),
+    val isLoadingModels: Boolean = false,
+    val conversations: List<com.jonaylor.saintjohn.data.local.entity.ConversationEntity> = emptyList(),
+    val currentConversationId: Long? = null
 )
 
 @HiltViewModel
@@ -35,7 +47,9 @@ class ChatViewModel @Inject constructor(
 
     init {
         loadSelectedProvider()
-        loadOrCreateConversation()
+        loadMostRecentConversation()
+        loadSelectedModel()
+        loadConversations()
     }
 
     private fun loadSelectedProvider() {
@@ -52,14 +66,17 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    private fun loadOrCreateConversation() {
+    private fun loadMostRecentConversation() {
         viewModelScope.launch {
-            currentConversationId = chatRepository.getCurrentConversationId()
+            // Try to get the most recent conversation with messages
+            currentConversationId = chatRepository.getMostRecentConversationId()
             currentConversationId?.let { id ->
+                _uiState.value = _uiState.value.copy(currentConversationId = id)
                 chatRepository.getMessages(id).collect { messages ->
                     _uiState.value = _uiState.value.copy(messages = messages)
                 }
             }
+            // If null, we'll start with an empty state (no conversation yet)
         }
     }
 
@@ -69,13 +86,28 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
-            val conversationId = currentConversationId ?: chatRepository.getCurrentConversationId()
-            currentConversationId = conversationId
+            // Create conversation only when first message is sent
+            if (currentConversationId == null) {
+                currentConversationId = chatRepository.createNewConversation(_uiState.value.selectedProvider)
+                _uiState.value = _uiState.value.copy(currentConversationId = currentConversationId)
 
-            chatRepository.sendMessage(
+                // Start observing messages for this new conversation
+                currentConversationId?.let { id ->
+                    chatRepository.getMessages(id).collect { messages ->
+                        _uiState.value = _uiState.value.copy(messages = messages)
+                    }
+                }
+            }
+
+            val conversationId = currentConversationId!!
+
+            chatRepository.sendMessageStreaming(
                 conversationId = conversationId,
                 content = content,
-                provider = _uiState.value.selectedProvider
+                provider = _uiState.value.selectedProvider,
+                onChunk = { chunk ->
+                    // The UI will automatically update from the database flow
+                }
             )
 
             _uiState.value = _uiState.value.copy(isLoading = false)
@@ -86,13 +118,126 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesManager.setSelectedLLMProvider(provider.name)
             _uiState.value = _uiState.value.copy(selectedProvider = provider)
+            // Load the selected model for the new provider
+            val model = chatRepository.getSelectedModel(provider)
+            _uiState.value = _uiState.value.copy(selectedModel = model)
         }
     }
 
     fun newConversation() {
         viewModelScope.launch {
-            currentConversationId = chatRepository.createNewConversation(_uiState.value.selectedProvider)
-            loadOrCreateConversation()
+            // Just clear the current conversation - don't create a new one until first message
+            currentConversationId = null
+            _uiState.value = _uiState.value.copy(
+                currentConversationId = null,
+                messages = emptyList()
+            )
+        }
+    }
+
+    suspend fun getOpenAIKey(): String {
+        return preferencesManager.openaiApiKey.firstOrNull() ?: ""
+    }
+
+    suspend fun getAnthropicKey(): String {
+        return preferencesManager.anthropicApiKey.firstOrNull() ?: ""
+    }
+
+    suspend fun getGoogleKey(): String {
+        return preferencesManager.googleApiKey.firstOrNull() ?: ""
+    }
+
+    suspend fun saveApiKeys(openaiKey: String, anthropicKey: String, googleKey: String) {
+        preferencesManager.setOpenAIApiKey(openaiKey)
+        preferencesManager.setAnthropicApiKey(anthropicKey)
+        preferencesManager.setGoogleApiKey(googleKey)
+    }
+
+    private fun loadSelectedModel() {
+        viewModelScope.launch {
+            val model = chatRepository.getSelectedModel(_uiState.value.selectedProvider)
+            _uiState.value = _uiState.value.copy(selectedModel = model)
+        }
+    }
+
+    fun loadAvailableModels() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingModels = true)
+
+            // Get API keys to determine which models are locked
+            val openaiKey = preferencesManager.openaiApiKey.first()
+            val anthropicKey = preferencesManager.anthropicApiKey.first()
+            val googleKey = preferencesManager.googleApiKey.first()
+
+            // Load models from all providers
+            val allModels = mutableListOf<ModelInfo>()
+
+            LLMProvider.entries.forEach { provider ->
+                val result = chatRepository.getAvailableModels(provider)
+                result.onSuccess { models ->
+                    val isLocked = when (provider) {
+                        LLMProvider.OPENAI -> openaiKey.isBlank()
+                        LLMProvider.ANTHROPIC -> anthropicKey.isBlank()
+                        LLMProvider.GOOGLE -> googleKey.isBlank()
+                    }
+
+                    models.forEach { modelName ->
+                        allModels.add(ModelInfo(
+                            name = modelName,
+                            provider = provider,
+                            isLocked = isLocked
+                        ))
+                    }
+                }
+            }
+
+            _uiState.value = _uiState.value.copy(
+                availableModels = allModels,
+                isLoadingModels = false
+            )
+        }
+    }
+
+    fun selectModel(modelInfo: ModelInfo) {
+        viewModelScope.launch {
+            // Update both provider and model
+            preferencesManager.setSelectedLLMProvider(modelInfo.provider.name)
+            chatRepository.setSelectedModel(modelInfo.provider, modelInfo.name)
+            _uiState.value = _uiState.value.copy(
+                selectedProvider = modelInfo.provider,
+                selectedModel = modelInfo.name
+            )
+        }
+    }
+
+    private fun loadConversations() {
+        viewModelScope.launch {
+            chatRepository.getAllConversations().collect { conversations ->
+                _uiState.value = _uiState.value.copy(conversations = conversations)
+            }
+        }
+    }
+
+    fun switchConversation(conversationId: Long) {
+        viewModelScope.launch {
+            chatRepository.switchToConversation(conversationId)
+            currentConversationId = conversationId
+            _uiState.value = _uiState.value.copy(currentConversationId = conversationId)
+
+            // Load messages for this conversation
+            chatRepository.getMessages(conversationId).collect { messages ->
+                _uiState.value = _uiState.value.copy(messages = messages)
+            }
+        }
+    }
+
+    fun deleteConversation(conversation: com.jonaylor.saintjohn.data.local.entity.ConversationEntity) {
+        viewModelScope.launch {
+            chatRepository.deleteConversation(conversation)
+            // If we deleted the current conversation, create a new one
+            if (conversation.id == currentConversationId) {
+                newConversation()
+            }
         }
     }
 }
