@@ -1,5 +1,6 @@
 package com.jonaylor.saintjohn.di
 
+import com.jonaylor.saintjohn.data.remote.AnthropicApi
 import com.jonaylor.saintjohn.data.remote.GeminiApi
 import com.jonaylor.saintjohn.data.remote.OpenAIApi
 import com.jonaylor.saintjohn.data.remote.WeatherApi
@@ -69,6 +70,17 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    @Named("anthropic")
+    fun provideAnthropicRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(AnthropicApi.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
     fun provideWeatherApi(@Named("weather") retrofit: Retrofit): WeatherApi {
         return retrofit.create(WeatherApi::class.java)
     }
@@ -83,5 +95,11 @@ object NetworkModule {
     @Singleton
     fun provideGeminiApi(@Named("gemini") retrofit: Retrofit): GeminiApi {
         return retrofit.create(GeminiApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAnthropicApi(@Named("anthropic") retrofit: Retrofit): AnthropicApi {
+        return retrofit.create(AnthropicApi::class.java)
     }
 }

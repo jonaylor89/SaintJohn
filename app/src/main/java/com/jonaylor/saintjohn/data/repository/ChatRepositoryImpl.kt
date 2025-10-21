@@ -6,8 +6,12 @@ import com.jonaylor.saintjohn.data.local.dao.MessageDao
 import com.jonaylor.saintjohn.data.local.entity.ConversationEntity
 import com.jonaylor.saintjohn.data.local.entity.MessageEntity
 import com.google.gson.Gson
+import com.jonaylor.saintjohn.data.remote.AnthropicApi
 import com.jonaylor.saintjohn.data.remote.GeminiApi
 import com.jonaylor.saintjohn.data.remote.OpenAIApi
+import com.jonaylor.saintjohn.data.remote.dto.AnthropicMessage
+import com.jonaylor.saintjohn.data.remote.dto.AnthropicRequest
+import com.jonaylor.saintjohn.data.remote.dto.AnthropicStreamChunk
 import com.jonaylor.saintjohn.data.remote.dto.GeminiContent
 import com.jonaylor.saintjohn.data.remote.dto.GeminiPart
 import com.jonaylor.saintjohn.data.remote.dto.GeminiRequest
@@ -31,7 +35,8 @@ class ChatRepositoryImpl @Inject constructor(
     private val conversationDao: ConversationDao,
     private val preferencesManager: PreferencesManager,
     private val openAIApi: OpenAIApi,
-    private val geminiApi: GeminiApi
+    private val geminiApi: GeminiApi,
+    private val anthropicApi: AnthropicApi
 ) : ChatRepository {
 
     private var currentConversationId: Long? = null
@@ -132,8 +137,35 @@ class ChatRepositoryImpl @Inject constructor(
                 }
 
                 LLMProvider.ANTHROPIC -> {
-                    // TODO: Implement Anthropic API
-                    "Anthropic API integration coming soon!"
+                    // Get conversation history for context
+                    val history = messageDao.getMessagesByConversation(conversationId).first()
+
+                    // Convert to Anthropic format
+                    val anthropicMessages = history.map { msg ->
+                        AnthropicMessage(
+                            role = msg.role.lowercase(),
+                            content = msg.content
+                        )
+                    }
+
+                    // Get selected model for this provider
+                    val selectedModel = getSelectedModel(provider)
+
+                    // Make API call
+                    val request = AnthropicRequest(
+                        model = selectedModel,
+                        messages = anthropicMessages,
+                        stream = false
+                    )
+
+                    val response = anthropicApi.createMessage(
+                        apiKey = apiKey,
+                        request = request
+                    )
+
+                    // Extract response content
+                    response.content.firstOrNull()?.text
+                        ?: throw Exception("No response from Anthropic")
                 }
 
                 LLMProvider.GOOGLE -> {
@@ -312,8 +344,79 @@ class ChatRepositoryImpl @Inject constructor(
                 }
 
                 LLMProvider.ANTHROPIC -> {
-                    // TODO: Implement Anthropic streaming
-                    "Anthropic streaming not implemented yet"
+                    // Get conversation history for context
+                    val history = messageDao.getMessagesByConversation(conversationId).first()
+                        .filter { it.id != messageId } // Exclude the placeholder
+
+                    // Convert to Anthropic format
+                    val anthropicMessages = history.map { msg ->
+                        AnthropicMessage(
+                            role = msg.role.lowercase(),
+                            content = msg.content
+                        )
+                    }
+
+                    // Get selected model for this provider
+                    val selectedModel = getSelectedModel(provider)
+
+                    // Make streaming API call
+                    val request = AnthropicRequest(
+                        model = selectedModel,
+                        messages = anthropicMessages,
+                        stream = true
+                    )
+
+                    val responseBody = anthropicApi.createMessageStream(
+                        apiKey = apiKey,
+                        request = request
+                    )
+
+                    val fullContent = StringBuilder()
+                    val gson = Gson()
+
+                    // Process stream line by line
+                    responseBody.byteStream().bufferedReader().use { reader ->
+                        reader.lineSequence()
+                            .forEach { line ->
+                                android.util.Log.d("AnthropicStream", "Raw line: $line")
+
+                                // Anthropic SSE format: lines starting with "data: "
+                                if (line.startsWith("data: ")) {
+                                    val data = line.substring(6) // Remove "data: " prefix
+
+                                    try {
+                                        val chunk = gson.fromJson(data, AnthropicStreamChunk::class.java)
+
+                                        // Handle different chunk types
+                                        when (chunk.type) {
+                                            "content_block_delta" -> {
+                                                chunk.delta?.text?.let { content ->
+                                                    fullContent.append(content)
+
+                                                    // Update the message in database in real-time
+                                                    messageDao.updateMessage(
+                                                        assistantMessage.copy(
+                                                            id = messageId,
+                                                            content = fullContent.toString()
+                                                        )
+                                                    )
+
+                                                    onChunk(content)
+                                                }
+                                            }
+                                            "message_stop" -> {
+                                                // End of stream
+                                                return@forEach
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("AnthropicStream", "Error parsing chunk: $data", e)
+                                    }
+                                }
+                            }
+                    }
+
+                    fullContent.toString()
                 }
 
                 LLMProvider.GOOGLE -> {
@@ -433,12 +536,11 @@ class ChatRepositoryImpl @Inject constructor(
                 }
 
                 LLMProvider.ANTHROPIC -> {
-                    // TODO: Implement Anthropic models fetch
-                    // For now, return hardcoded list
+                    // Latest Claude models
                     Result.success(listOf(
-                        "claude-3-5-sonnet-20241022",
-                        "claude-3-5-haiku-20241022",
-                        "claude-3-opus-20240229"
+                        "claude-sonnet-4-5-20250929",   // Smartest model for complex agents and coding
+                        "claude-haiku-4-5-20251001",    // Fastest model with near-frontier intelligence
+                        "claude-opus-4-1-20250805"      // Exceptional model for specialized reasoning
                     ))
                 }
 

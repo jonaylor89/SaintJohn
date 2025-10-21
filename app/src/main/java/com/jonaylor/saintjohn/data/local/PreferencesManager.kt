@@ -117,7 +117,7 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
     }
 
     val selectedAnthropicModel: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[SELECTED_ANTHROPIC_MODEL] ?: "claude-3-5-sonnet-20241022"
+        preferences[SELECTED_ANTHROPIC_MODEL] ?: "claude-sonnet-4-5-20250929"
     }
 
     val selectedGoogleModel: Flow<String> = context.dataStore.data.map { preferences ->
