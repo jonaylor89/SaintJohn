@@ -21,7 +21,11 @@
       "WebFetch(domain:ai.google.dev)",
       "Bash(../gradlew assembleDebug:*)",
       "Bash(aapt dump:*)",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "WebFetch(domain:blog.jonaylor.com)",
+      "WebFetch(domain:jonaylor.com)",
+      "WebFetch(domain:getfuego.dev)",
+      "WebFetch(domain:blloc.com)"
     ],
     "deny": [],
     "ask": []
