@@ -23,6 +23,7 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
         val MONOCHROME_ENABLED = booleanPreferencesKey("monochrome_enabled")
         val SYSTEM_GRAYSCALE_ENABLED = booleanPreferencesKey("system_grayscale_enabled")
         val FIRST_LAUNCH = booleanPreferencesKey("first_launch")
+        val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val OPENAI_API_KEY = stringPreferencesKey("openai_api_key")
         val ANTHROPIC_API_KEY = stringPreferencesKey("anthropic_api_key")
         val GOOGLE_API_KEY = stringPreferencesKey("google_api_key")
@@ -48,6 +49,10 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
         preferences[FIRST_LAUNCH] ?: true
     }
 
+    val onboardingCompleted: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ONBOARDING_COMPLETED] ?: false
+    }
+
     suspend fun setThemeMode(mode: String) {
         context.dataStore.edit { preferences ->
             preferences[THEME_MODE] = mode
@@ -69,6 +74,12 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
     suspend fun setFirstLaunch(isFirst: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[FIRST_LAUNCH] = isFirst
+        }
+    }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ONBOARDING_COMPLETED] = completed
         }
     }
 

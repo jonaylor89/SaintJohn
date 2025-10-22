@@ -1,6 +1,6 @@
-# SaintJohn Website
+# Saint John Website
 
-Minimalist marketing website for the SaintJohn Android launcher.
+Minimalist marketing website for the Saint John Android launcher.
 
 ## Design Philosophy
 
@@ -30,7 +30,8 @@ The site uses placeholder elements for visual content. Replace these with actual
 ```html
 <div class="placeholder-video">
 ```
-Replace with: Looping video or animated GIF of SaintJohn in action (home screen → widgets → chat)
+Replace with: Looping video or animated GIF of Saint John in action (home 
+screen → widgets → chat)
 
 ### 2. Feature Screenshots (3 total)
 ```html

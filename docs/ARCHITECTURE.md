@@ -1,7 +1,8 @@
-# SaintJohn Architecture Documentation
+# Saint John Architecture Documentation
 
 ## Overview
-SaintJohn follows Clean Architecture principles with clear separation between UI, business logic, and data layers.
+Saint John follows Clean Architecture principles with clear separation 
+between UI, business logic, and data layers.
 
 ## Layer Structure
 

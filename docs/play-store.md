@@ -99,7 +99,7 @@ The APK will be at: `app/build/outputs/apk/release/app-release.apk`
 1. Go to [Google Play Console](https://play.google.com/console)
 2. Click "Create App"
 3. Fill in:
-   - App name: "SaintJohn"
+   - App name: "Saint John"
    - Default language
    - App or game: App
    - Free or paid: Free

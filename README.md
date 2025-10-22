@@ -1,4 +1,4 @@
-# SaintJohn
+# Saint John
 
 Minimal Android Launcher
 

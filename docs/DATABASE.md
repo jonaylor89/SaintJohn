@@ -1,7 +1,8 @@
 # Database Schema Documentation
 
 ## Overview
-SaintJohn uses Room (SQLite) for local data persistence. Current version: **4**
+Saint John uses Room (SQLite) for local data persistence. Current version: 
+**4**
 
 ## Schema Diagram
 

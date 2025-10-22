@@ -46,6 +46,11 @@
         android:theme="@style/Theme.SaintJohn"
         tools:targetApi="31">
         <activity
+            android:name=".presentation.onboarding.OnboardingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SaintJohn" />
+
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"

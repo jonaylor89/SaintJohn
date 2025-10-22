@@ -40,10 +40,10 @@ After installation:
 1. Press the Home button on your device
 
 2. Android will show a launcher selection dialog with options like:
-   - SaintJohn (this app)
+   - Saint John (this app)
    - Your previous launcher
 
-3. Select "SaintJohn"
+3. Select "Saint John"
 
 4. Choose "Always" to set it as the default launcher
    - Or choose "Just once" to try it temporarily
@@ -59,7 +59,7 @@ If you want to switch back to your previous launcher:
 
 ### Reverting to Previous Launcher
 
-If SaintJohn is not working correctly:
+If Saint John is not working correctly:
 
 1. Connect to ADB and run:
 ```bash

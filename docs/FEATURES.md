@@ -2,7 +2,7 @@
 
 ## App Structure
 
-SaintJohn uses a 3-page horizontal swipe interface:
+Saint John uses a 3-page horizontal swipe interface:
 
 ```
 ┌─────────────┬─────────────┬─────────────┐

@@ -46,9 +46,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
-            val themeMode by preferencesManager.themeMode.collectAsState(initial = "BLLOC")
-            val coroutineScope = rememberCoroutineScope()
+            val onboardingCompleted by preferencesManager.onboardingCompleted.collectAsState(initial = false)
+
+            // Check if we need to show onboarding
+            LaunchedEffect(onboardingCompleted) {
+                if (!onboardingCompleted) {
+                    // Navigate to onboarding
+                    startActivity(Intent(this@MainActivity, com.jonaylor.saintjohn.presentation.onboarding.OnboardingActivity::class.java))
+                    finish()
+                    return@LaunchedEffect
+                }
+            }
+
+            // Only show main content if onboarding is completed
+            if (onboardingCompleted) {
+                val themeMode by preferencesManager.themeMode.collectAsState(initial = "BLLOC")
+                val coroutineScope = rememberCoroutineScope()
 
             LauncherTheme(themeMode = themeMode) {
                 // Configure system bars appearance
@@ -127,6 +142,7 @@ class MainActivity : ComponentActivity() {
                         2 -> HomeScreen() // Right: Home/Settings
                     }
                 }
+            }
             }
         }
     }

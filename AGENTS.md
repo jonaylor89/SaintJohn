@@ -1,7 +1,7 @@
-# Claude Code Development Guide for SaintJohn
+# Claude Code Development Guide for Saint John
 
 ## Project Overview
-SaintJohn is a minimalist Android launcher built with Kotlin and Jetpack Compose. It features a three-page horizontal pager interface with app drawer, widget cards, and an LLM chat interface.
+Saint John is a minimalist Android launcher built with Kotlin and Jetpack Compose. It features a three-page horizontal pager interface with app drawer, widget cards, and an LLM chat interface.
 
 ## Quick Start Commands
 
