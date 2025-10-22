@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -19,6 +20,7 @@ fun ChatInput(
     modifier: Modifier = Modifier
 ) {
     var messageText by remember { mutableStateOf("") }
+    val view = LocalView.current
 
     Row(
         modifier = modifier
@@ -53,6 +55,7 @@ fun ChatInput(
 
         IconButton(
             onClick = {
+                view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                 if (isLoading) {
                     onCancelMessage()
                 } else if (messageText.isNotBlank()) {

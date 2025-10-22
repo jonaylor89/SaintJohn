@@ -25,7 +25,12 @@
       "WebFetch(domain:blog.jonaylor.com)",
       "WebFetch(domain:jonaylor.com)",
       "WebFetch(domain:getfuego.dev)",
-      "WebFetch(domain:blloc.com)"
+      "WebFetch(domain:blloc.com)",
+      "WebFetch(domain:singyulam.com)",
+      "WebFetch(domain:platform.openai.com)",
+      "WebSearch",
+      "Bash(jarsigner:*)",
+      "Bash(adb uninstall:*)"
     ],
     "deny": [],
     "ask": []

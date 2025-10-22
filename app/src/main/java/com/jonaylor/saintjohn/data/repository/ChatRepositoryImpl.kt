@@ -523,14 +523,19 @@ class ChatRepositoryImpl @Inject constructor(
         return try {
             when (provider) {
                 LLMProvider.OPENAI -> {
-                    // Curated list of latest/popular OpenAI models
+                    // Curated list of latest/popular OpenAI models (2025)
                     val popularModels = listOf(
-                        "o1",              // Latest reasoning model
-                        "o1-mini",         // Fast reasoning model
-                        "gpt-4o",          // Latest flagship
-                        "gpt-4o-mini",     // Fast and cheap
-                        "gpt-4-turbo",     // Previous gen turbo
-                        "gpt-3.5-turbo"    // Legacy fast model
+                        "gpt-5-pro",       // Smartest, most precise GPT-5
+                        "gpt-5",           // Best for coding and agentic tasks
+                        "gpt-5-mini",      // Faster, cost-efficient GPT-5
+                        "gpt-5-nano",      // Fastest, most cost-efficient GPT-5
+                        "gpt-4.1",         // Latest GPT-4 flagship
+                        "gpt-4.1-mini",    // Efficient GPT-4.1
+                        "gpt-4o",          // GPT-4 Omni - multimodal
+                        "gpt-4o-mini",     // Fast and cheap GPT-4o
+                        "o3-mini",         // Latest reasoning model
+                        "o1",              // Previous reasoning model
+                        "o1-mini"          // Fast reasoning model
                     )
                     Result.success(popularModels)
                 }

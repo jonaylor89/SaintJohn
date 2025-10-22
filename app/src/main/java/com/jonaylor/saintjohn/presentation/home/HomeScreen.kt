@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jonaylor.saintjohn.presentation.home.components.ChatBubble
@@ -90,13 +91,15 @@ fun HomeScreen(
                     ) {
                         Text(
                             text = if (uiState.selectedModel.isNotEmpty()) {
-                                "${uiState.selectedProvider.displayName} - ${uiState.selectedModel}"
+                                "${getShortProviderName(uiState.selectedProvider.displayName)} - ${getShortModelName(uiState.selectedModel)}"
                             } else {
-                                uiState.selectedProvider.displayName
+                                getShortProviderName(uiState.selectedProvider.displayName)
                             },
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -388,5 +391,40 @@ private fun ModelItem(
                 )
             }
         }
+    }
+}
+
+// Helper functions to shorten model and provider names
+private fun getShortProviderName(providerName: String): String {
+    return when (providerName.lowercase()) {
+        "openai" -> "OpenAI"
+        "anthropic" -> "Anthropic"
+        "google" -> "Google"
+        else -> providerName
+    }
+}
+
+private fun getShortModelName(modelName: String): String {
+    // Map long Anthropic model names to shorter versions
+    return when {
+        modelName.contains("claude-sonnet-4-5") -> "Sonnet 4.5"
+        modelName.contains("claude-haiku-4-5") -> "Haiku 4.5"
+        modelName.contains("claude-opus-4-1") -> "Opus 4.1"
+        modelName.contains("claude-sonnet-4") -> "Sonnet 4"
+        modelName.contains("claude-haiku-4") -> "Haiku 4"
+        modelName.contains("claude-opus-4") -> "Opus 4"
+        modelName.contains("claude") -> modelName.substringAfter("claude-")
+
+        // Shorten Gemini models
+        modelName.contains("gemini-2.5-flash") -> "Gemini 2.5 Flash"
+        modelName.contains("gemini-2.5-pro") -> "Gemini 2.5 Pro"
+        modelName.contains("gemini-2.0") -> "Gemini 2.0"
+        modelName.contains("gemini-1.5") -> "Gemini 1.5"
+
+        // OpenAI models are already short, but remove any timestamps
+        modelName.startsWith("gpt") -> modelName
+        modelName.startsWith("o") -> modelName
+
+        else -> modelName
     }
 }
