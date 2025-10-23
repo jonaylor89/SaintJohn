@@ -1,5 +1,13 @@
 # Features Documentation
 
+## Visual Overview
+
+<div align="center">
+  <img src="../web/assets/root_page_screenshot.jpg" width="250" alt="Home/Cards Screen" />
+  <img src="../web/assets/drawer_page_screenshot.jpg" width="250" alt="App Drawer" />
+  <img src="../web/assets/chat_page_screenshot.jpg" width="250" alt="Chat Screen" />
+</div>
+
 ## App Structure
 
 Saint John uses a 3-page horizontal swipe interface:

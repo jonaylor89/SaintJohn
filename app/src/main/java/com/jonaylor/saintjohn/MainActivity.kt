@@ -3,6 +3,7 @@ package com.jonaylor.saintjohn
 import android.Manifest
 import android.app.AppOpsManager
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
@@ -159,7 +160,41 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showAppDashboard(app: AppInfo) {
-        // TODO: Implement app dashboard bottom sheet
+        // Show options dialog for the app
+        android.app.AlertDialog.Builder(this)
+            .setTitle(app.label)
+            .setItems(arrayOf("App Info", "Uninstall")) { _, which ->
+                when (which) {
+                    0 -> openAppInfo(app.packageName)
+                    1 -> uninstallApp(app.packageName)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun openAppInfo(packageName: String) {
+        try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun uninstallApp(packageName: String) {
+        try {
+            val intent = Intent(Intent.ACTION_DELETE).apply {
+                data = Uri.parse("package:$packageName")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun hasUsageStatsPermission(): Boolean {

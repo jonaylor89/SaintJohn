@@ -7,16 +7,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.jonaylor.saintjohn.presentation.root.components.CalendarCard
 import com.jonaylor.saintjohn.presentation.root.components.NotesCard
 import com.jonaylor.saintjohn.presentation.root.components.WeatherCard
+import kotlinx.coroutines.delay
 
 @Composable
 fun RootScreen(
@@ -25,9 +31,33 @@ fun RootScreen(
     notesViewModel: NotesViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val weatherUiState by weatherViewModel.uiState.collectAsState()
     val calendarUiState by calendarViewModel.uiState.collectAsState()
     val notesUiState by notesViewModel.uiState.collectAsState()
+
+    // Refresh weather and calendar when app resumes
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                weatherViewModel.refreshWeather()
+                calendarViewModel.refreshEvents()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Periodic refresh every 30 minutes
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30 * 60 * 1000L) // 30 minutes
+            weatherViewModel.refreshWeather()
+            calendarViewModel.refreshEvents()
+        }
+    }
 
     Column(
         modifier = Modifier

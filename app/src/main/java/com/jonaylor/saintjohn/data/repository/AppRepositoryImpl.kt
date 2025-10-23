@@ -13,6 +13,8 @@ import com.jonaylor.saintjohn.domain.usecase.AppCategorizationUseCase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -26,9 +28,15 @@ class AppRepositoryImpl @Inject constructor(
     private val getAppUsageStatsUseCase: com.jonaylor.saintjohn.domain.usecase.GetAppUsageStatsUseCase
 ) : AppRepository {
 
+    private val refreshTrigger = MutableStateFlow(0L)
+
     override fun getAllApps(): Flow<List<AppInfo>> {
-        return appPreferenceDao.getAllPreferences()
-            .map { preferences ->
+        return combine(
+            appPreferenceDao.getAllPreferences(),
+            refreshTrigger
+        ) { preferences, _ ->
+            preferences
+        }.map { preferences ->
                 val installedApps = withContext(Dispatchers.IO) {
                     loadInstalledApps()
                 }
@@ -47,8 +55,12 @@ class AppRepositoryImpl @Inject constructor(
     }
 
     override fun getAppsByCategory(category: AppCategory): Flow<List<AppInfo>> {
-        return appPreferenceDao.getAllPreferences()
-            .map { preferences ->
+        return combine(
+            appPreferenceDao.getAllPreferences(),
+            refreshTrigger
+        ) { preferences, _ ->
+            preferences
+        }.map { preferences ->
                 val installedApps = withContext(Dispatchers.IO) {
                     loadInstalledApps()
                 }
@@ -139,7 +151,8 @@ class AppRepositoryImpl @Inject constructor(
     }
 
     override suspend fun refreshApps() {
-        // Trigger a reload of apps (can be used to force refresh)
+        // Trigger a reload of apps by updating the refresh trigger
+        refreshTrigger.value = System.currentTimeMillis()
     }
 
     private fun loadInstalledApps(): List<AppInfo> {

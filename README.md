@@ -1,12 +1,39 @@
 # Saint John
 
-Minimal Android Launcher
+A minimalist Android launcher with LLM conversations, smart widgets, and organized apps—all on your home screen.
+
+## Screenshots
+
+<div align="center">
+  <img src="web/assets/root_page_screenshot.jpg" width="250" alt="Home Screen" />
+  <img src="web/assets/chat_page_screenshot.jpg" width="250" alt="Chat Screen" />
+  <img src="web/assets/drawer_page_screenshot.jpg" width="250" alt="App Drawer" />
+</div>
 
 ## Features
 
-- Custom Android launcher with Weather, Calendar, and Notes widgets
-- Integrated chat with multiple LLM providers (OpenAI, Anthropic, Google)
-- Builtin LLM chat with several model options
+### AI Conversations, Natively
+Access OpenAI, Anthropic Claude, and Google Gemini directly from your home screen. No context switching—talk to your AI right where you live.
+- Streaming responses in real-time
+- Multiple model support (GPT-5, Claude Sonnet, Gemini 2.5 Pro, and more)
+- Conversation history and search
+- Cancel mid-response
+
+### Essential Widgets
+Everything you need at a glance. Weather, calendar, and notes—beautifully designed and always accessible.
+- Live weather with location-based updates (auto-refreshes every 30 minutes)
+- Calendar events (tap to open in calendar, auto-updates)
+- Quick notes with markdown support
+- Material 3 design language
+
+### Organized App Drawer
+Keep your apps tidy with collapsible folders. Pull down to expand or collapse all—a gesture that feels natural.
+- Collapsible folders for clean organization
+- Pull-to-expand/collapse gesture
+- Haptic feedback for interactions
+- Alphabetically sorted
+- Long-press for App Info/Uninstall
+- Auto-detects newly installed apps
 
 ## Building
 

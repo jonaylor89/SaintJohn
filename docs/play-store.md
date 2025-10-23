@@ -118,6 +118,14 @@ Navigate to "Store Presence > Main Store Listing" and provide:
 - Application type: Applications
 - Category: Personalization
 
+**Available Screenshots:**
+Screenshots are available in `web/assets/`:
+- `root_page_screenshot.jpg` - Home screen with widgets (weather, calendar, notes)
+- `drawer_page_screenshot.jpg` - App drawer with organized folders
+- `chat_page_screenshot.jpg` - Chat interface with LLM conversation
+
+These vertical phone screenshots showcase the three main pages of the app and are suitable for Play Store listing.
+
 **Privacy Policy:**
 - Required if you collect user data (API keys are stored locally)
 - Host a privacy policy URL or use Play Console's generator
