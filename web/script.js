@@ -1,6 +1,31 @@
 // Set dynamic copyright year
 document.getElementById('copyright-year').textContent = new Date().getFullYear();
 
+// Salvation Mode Toggle
+const salvationToggle = document.getElementById('salvation-toggle');
+const body = document.body;
+
+// Check localStorage for saved preference
+const salvationMode = localStorage.getItem('salvationMode') === 'true';
+if (salvationMode) {
+    body.classList.add('salvation-mode');
+    salvationToggle.innerHTML = '✝ Return to Earth';
+}
+
+salvationToggle.addEventListener('click', () => {
+    body.classList.toggle('salvation-mode');
+    const isActive = body.classList.contains('salvation-mode');
+
+    // Update button text
+    salvationToggle.innerHTML = isActive ? '✝ Return to Earth' : '✝ Enter Salvation';
+
+    // Save preference
+    localStorage.setItem('salvationMode', isActive);
+
+    // Add a subtle effect
+    body.style.transition = 'all 0.5s ease';
+});
+
 // Smooth scroll for anchor links
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
