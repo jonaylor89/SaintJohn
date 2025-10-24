@@ -565,6 +565,65 @@ html {
     scroll-behavior: smooth;
 }
 
+/* Early Access Banner */
+.early-access-banner {
+    background: linear-gradient(135deg, var(--gray-6) 0%, var(--gray-5) 100%);
+    color: var(--gray-0);
+    padding: 16px 0;
+    text-align: center;
+    border-bottom: 1px solid var(--gray-4);
+}
+
+.early-access-banner .container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.banner-badge {
+    background: var(--gray-0);
+    color: var(--gray-6);
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.banner-text {
+    margin: 0;
+    font-size: 15px;
+    color: var(--gray-0);
+}
+
+.banner-link {
+    color: var(--gray-0);
+    text-decoration: underline;
+    font-weight: 600;
+}
+
+.banner-link:hover {
+    color: var(--gray-2);
+}
+
+/* Disabled Button Styles */
+.primary-button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--gray-4);
+    color: var(--gray-2);
+    border: 2px solid var(--gray-3);
+}
+
+.primary-button.disabled:hover {
+    transform: none;
+    box-shadow: none;
+    background: var(--gray-4);
+    color: var(--gray-2);
+}
+
 /* ============================================
    SALVATION MODE - Early Christian Art Theme
    ============================================ */
@@ -1057,4 +1116,47 @@ html {
 
 .salvation-mode::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(180deg, #ffcc00 0%, #d4af37 100%);
+}
+
+/* Early Access Banner - Salvation Mode */
+.salvation-mode .early-access-banner {
+    background: linear-gradient(135deg, #8b6914 0%, #6b4423 100%);
+    border-bottom: 2px solid #d4af37;
+}
+
+.salvation-mode .banner-badge {
+    background: #d4af37;
+    color: #4a2511;
+    font-family: 'Byzantine Normal', 'Times New Roman', Times, serif;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.salvation-mode .banner-text {
+    color: #f4e4c1;
+    font-family: 'Byzantine Normal', 'Times New Roman', Times, serif;
+}
+
+.salvation-mode .banner-link {
+    color: #d4af37;
+    font-weight: 700;
+}
+
+.salvation-mode .banner-link:hover {
+    color: #ffcc00;
+    text-shadow: 0 0 8px rgba(255, 204, 0, 0.5);
+}
+
+/* Disabled Button - Salvation Mode */
+.salvation-mode .primary-button.disabled {
+    background: linear-gradient(135deg, #8b6914 0%, #6b4423 100%);
+    color: #c4a574;
+    border: 2px solid #5a3621;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.salvation-mode .primary-button.disabled:hover {
+    transform: none;
+    box-shadow: none;
+    background: linear-gradient(135deg, #8b6914 0%, #6b4423 100%);
 }
