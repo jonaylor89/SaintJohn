@@ -30,7 +30,10 @@
       "WebFetch(domain:platform.openai.com)",
       "WebSearch",
       "Bash(jarsigner:*)",
-      "Bash(adb uninstall:*)"
+      "Bash(adb uninstall:*)",
+      "Bash(\"$HOME/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java\" -version)",
+      "Read(//Users/johannes/Desktop/favicons/**)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

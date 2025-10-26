@@ -12,18 +12,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.core.view.WindowCompat
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -115,6 +122,8 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                var selectedApp by remember { mutableStateOf<AppInfo?>(null) }
+
                 val pagerState = rememberPagerState(
                     initialPage = 1, // Start at center (Drawer screen)
                     pageCount = { 3 }
@@ -138,10 +147,26 @@ class MainActivity : ComponentActivity() {
                         0 -> RootScreen() // Left: Cards
                         1 -> DrawerScreen( // Center: App Drawer
                             onAppClick = { app -> launchApp(app) },
-                            onAppLongClick = { app -> showAppDashboard(app) }
+                            onAppLongClick = { app -> selectedApp = app }
                         )
                         2 -> HomeScreen() // Right: Home/Settings
                     }
+                }
+
+                // App options dialog
+                selectedApp?.let { app ->
+                    AppOptionsDialog(
+                        app = app,
+                        onDismiss = { selectedApp = null },
+                        onAppInfo = {
+                            openAppInfo(app.packageName)
+                            selectedApp = null
+                        },
+                        onUninstall = {
+                            uninstallApp(app.packageName)
+                            selectedApp = null
+                        }
+                    )
                 }
             }
             }
@@ -157,20 +182,6 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-    }
-
-    private fun showAppDashboard(app: AppInfo) {
-        // Show options dialog for the app
-        android.app.AlertDialog.Builder(this)
-            .setTitle(app.label)
-            .setItems(arrayOf("App Info", "Uninstall")) { _, which ->
-                when (which) {
-                    0 -> openAppInfo(app.packageName)
-                    1 -> uninstallApp(app.packageName)
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
     }
 
     private fun openAppInfo(packageName: String) {
@@ -226,6 +237,116 @@ class MainActivity : ComponentActivity() {
             startActivity(intent)
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+}
+
+@Composable
+fun AppOptionsDialog(
+    app: AppInfo,
+    onDismiss: () -> Unit,
+    onAppInfo: () -> Unit,
+    onUninstall: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 8.dp
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // App name
+                Text(
+                    text = app.label,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = app.packageName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Options
+                DialogOption(
+                    icon = Icons.Default.Info,
+                    text = "App Info",
+                    onClick = onAppInfo
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                DialogOption(
+                    icon = Icons.Default.Delete,
+                    text = "Uninstall",
+                    onClick = onUninstall
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Cancel button
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "Cancel",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DialogOption(
+    icon: ImageVector,
+    text: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = text,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }

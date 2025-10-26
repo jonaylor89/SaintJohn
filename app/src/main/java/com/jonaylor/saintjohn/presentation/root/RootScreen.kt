@@ -4,16 +4,18 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -23,7 +25,9 @@ import com.jonaylor.saintjohn.presentation.root.components.CalendarCard
 import com.jonaylor.saintjohn.presentation.root.components.NotesCard
 import com.jonaylor.saintjohn.presentation.root.components.WeatherCard
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RootScreen(
     weatherViewModel: WeatherViewModel = hiltViewModel(),
@@ -32,9 +36,13 @@ fun RootScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val haptic = LocalHapticFeedback.current
     val weatherUiState by weatherViewModel.uiState.collectAsState()
     val calendarUiState by calendarViewModel.uiState.collectAsState()
     val notesUiState by notesViewModel.uiState.collectAsState()
+
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     // Refresh weather and calendar when app resumes
     DisposableEffect(lifecycleOwner) {
@@ -59,19 +67,39 @@ fun RootScreen(
         }
     }
 
-    Column(
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            scope.launch {
+                isRefreshing = true
+                weatherViewModel.refreshWeather()
+                calendarViewModel.refreshEvents()
+                delay(1000) // Small delay to show refresh indicator
+                isRefreshing = false
+            }
+        },
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.Start
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.Start
+        ) {
         // Weather Card
         WeatherCard(
             weatherData = weatherUiState.weatherData,
             isLoading = weatherUiState.isLoading,
+            onRefresh = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                weatherViewModel.refreshWeather()
+            },
             onOpenWeatherApp = {
                 // Try to open Pixel Weather or any weather app
                 val packageManager = context.packageManager
@@ -123,6 +151,10 @@ fun RootScreen(
         CalendarCard(
             events = calendarUiState.events,
             isLoading = calendarUiState.isLoading,
+            onRefresh = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                calendarViewModel.refreshEvents()
+            },
             onEventClick = { eventId ->
                 // Open the event in the calendar app
                 val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -148,14 +180,15 @@ fun RootScreen(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Notes Card
-        NotesCard(
-            notes = notesUiState.notes,
-            isLoading = notesUiState.isLoading,
-            onAddNote = { title, content -> notesViewModel.addNote(title, content) },
-            onUpdateNote = { note -> notesViewModel.updateNote(note) },
-            onDeleteNote = { note -> notesViewModel.deleteNote(note) },
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+            // Notes Card
+            NotesCard(
+                notes = notesUiState.notes,
+                isLoading = notesUiState.isLoading,
+                onAddNote = { title, content -> notesViewModel.addNote(title, content) },
+                onUpdateNote = { note -> notesViewModel.updateNote(note) },
+                onDeleteNote = { note -> notesViewModel.deleteNote(note) },
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
     }
 }
