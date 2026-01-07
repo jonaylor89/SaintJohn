@@ -2,7 +2,10 @@ package com.jonaylor.saintjohn
 
 import android.Manifest
 import android.app.AppOpsManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -31,11 +34,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.jonaylor.saintjohn.data.local.PreferencesManager
 import com.jonaylor.saintjohn.domain.model.AppInfo
+import com.jonaylor.saintjohn.domain.repository.AppRepository
 import com.jonaylor.saintjohn.presentation.drawer.DrawerScreen
 import com.jonaylor.saintjohn.presentation.home.HomeScreen
 import com.jonaylor.saintjohn.presentation.root.RootScreen
@@ -50,10 +56,16 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var preferencesManager: PreferencesManager
 
+    @Inject
+    lateinit var appRepository: AppRepository
+
+    private var packageChangeReceiver: BroadcastReceiver? = null
+
     @OptIn(ExperimentalPermissionsApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        registerPackageChangeReceiver()
 
         setContent {
             val onboardingCompleted by preferencesManager.onboardingCompleted.collectAsState(initial = false)
@@ -238,6 +250,59 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun registerPackageChangeReceiver() {
+        packageChangeReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val action = intent?.action ?: return
+                val isReplacing = intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)
+
+                when (action) {
+                    Intent.ACTION_PACKAGE_ADDED,
+                    Intent.ACTION_PACKAGE_REMOVED -> {
+                        if (!isReplacing) {
+                            lifecycleScope.launch {
+                                appRepository.refreshApps()
+                            }
+                        }
+                    }
+                    Intent.ACTION_PACKAGE_CHANGED,
+                    Intent.ACTION_PACKAGE_REPLACED -> {
+                        lifecycleScope.launch {
+                            appRepository.refreshApps()
+                        }
+                    }
+                }
+            }
+        }
+
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addDataScheme("package")
+        }
+
+        ContextCompat.registerReceiver(
+            this,
+            packageChangeReceiver,
+            filter,
+            ContextCompat.RECEIVER_EXPORTED
+        )
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        packageChangeReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (e: Exception) {
+                // Already unregistered
+            }
+        }
+        packageChangeReceiver = null
     }
 }
 

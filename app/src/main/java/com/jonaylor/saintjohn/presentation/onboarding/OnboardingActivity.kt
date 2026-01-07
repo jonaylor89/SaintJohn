@@ -1,10 +1,8 @@
 package com.jonaylor.saintjohn.presentation.onboarding
 
 import android.Manifest
-import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -26,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.jonaylor.saintjohn.MainActivity
-import com.jonaylor.saintjohn.ui.theme.SaintJohnTheme
+import com.jonaylor.saintjohn.data.local.PreferencesManager
 import com.jonaylor.saintjohn.util.theme.LauncherTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -36,7 +34,7 @@ import javax.inject.Inject
 class OnboardingActivity : ComponentActivity() {
 
     @Inject
-    lateinit var preferencesManager: com.jonaylor.saintjohn.data.local.PreferencesManager
+    lateinit var preferencesManager: PreferencesManager
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -49,14 +47,21 @@ class OnboardingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        if (shouldSkipOnboarding()) {
+            lifecycleScope.launch {
+                preferencesManager.setOnboardingCompleted(true)
+                startActivity(Intent(this@OnboardingActivity, MainActivity::class.java))
+                finish()
+            }
+            return
+        }
+
         setContent {
             LauncherTheme {
                 OnboardingScreen(
                     onComplete = {
-                        // Mark onboarding as completed
                         lifecycleScope.launch {
                             preferencesManager.setOnboardingCompleted(true)
-                            // Navigate to main activity
                             startActivity(Intent(this@OnboardingActivity, MainActivity::class.java))
                             finish()
                         }
@@ -68,7 +73,6 @@ class OnboardingActivity : ComponentActivity() {
                         calendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                     },
                     onRequestUsageStatsPermission = {
-                        // Open usage stats settings
                         try {
                             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
                         } catch (e: Exception) {
@@ -76,12 +80,10 @@ class OnboardingActivity : ComponentActivity() {
                         }
                     },
                     onSetDefaultLauncher = {
-                        // Open default apps settings so user can set launcher
                         try {
                             val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                                 Intent(Settings.ACTION_HOME_SETTINGS)
                             } else {
-                                // Fallback: trigger home screen chooser
                                 Intent(Intent.ACTION_MAIN).apply {
                                     addCategory(Intent.CATEGORY_HOME)
                                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -89,7 +91,6 @@ class OnboardingActivity : ComponentActivity() {
                             }
                             startActivity(intent)
                         } catch (e: Exception) {
-                            // If ACTION_HOME_SETTINGS doesn't work, trigger chooser
                             try {
                                 val intent = Intent(Intent.ACTION_MAIN)
                                 intent.addCategory(Intent.CATEGORY_HOME)
@@ -112,33 +113,50 @@ class OnboardingActivity : ComponentActivity() {
                             Manifest.permission.READ_CALENDAR
                         ) == PackageManager.PERMISSION_GRANTED
                     },
-                    checkUsageStatsPermission = {
-                        // Check if we have usage stats permission
-                        val appOps = getSystemService(APP_OPS_SERVICE) as android.app.AppOpsManager
-                        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            appOps.unsafeCheckOpNoThrow(
-                                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
-                                android.os.Process.myUid(),
-                                packageName
-                            )
-                        } else {
-                            appOps.checkOpNoThrow(
-                                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
-                                android.os.Process.myUid(),
-                                packageName
-                            )
-                        }
-                        mode == android.app.AppOpsManager.MODE_ALLOWED
-                    },
-                    checkIsDefaultLauncher = {
-                        val intent = Intent(Intent.ACTION_MAIN)
-                        intent.addCategory(Intent.CATEGORY_HOME)
-                        val resolveInfo = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-                        resolveInfo?.activityInfo?.packageName == packageName
-                    }
+                    checkUsageStatsPermission = { hasUsageStatsPermission() },
+                    checkIsDefaultLauncher = { isDefaultLauncher() }
                 )
             }
         }
+    }
+
+    private fun shouldSkipOnboarding(): Boolean {
+        val hasLocation = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val hasCalendar = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.READ_CALENDAR
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val hasUsageStats = hasUsageStatsPermission()
+
+        return hasLocation && hasCalendar && hasUsageStats && isDefaultLauncher()
+    }
+
+    private fun hasUsageStatsPermission(): Boolean {
+        val appOps = getSystemService(APP_OPS_SERVICE) as android.app.AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(
+                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                packageName
+            )
+        } else {
+            appOps.checkOpNoThrow(
+                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                packageName
+            )
+        }
+        return mode == android.app.AppOpsManager.MODE_ALLOWED
+    }
+
+    private fun isDefaultLauncher(): Boolean {
+        val intent = Intent(Intent.ACTION_MAIN)
+        intent.addCategory(Intent.CATEGORY_HOME)
+        val resolveInfo = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        return resolveInfo?.activityInfo?.packageName == packageName
     }
 }
 
@@ -158,13 +176,11 @@ fun OnboardingScreen(
     val pagerState = rememberPagerState(pageCount = { 5 })
     val scope = rememberCoroutineScope()
 
-    // Track permission states
     var locationGranted by remember { mutableStateOf(checkLocationPermission()) }
     var calendarGranted by remember { mutableStateOf(checkCalendarPermission()) }
     var usageStatsGranted by remember { mutableStateOf(checkUsageStatsPermission()) }
     var isDefaultLauncher by remember { mutableStateOf(checkIsDefaultLauncher()) }
 
-    // Refresh permission states when returning to the screen
     LaunchedEffect(pagerState.currentPage) {
         locationGranted = checkLocationPermission()
         calendarGranted = checkCalendarPermission()
@@ -250,24 +266,18 @@ fun OnboardingScreen(
                     }
                 )
                 4 -> PermissionPage(
-                    title = "Smart App Insights",
+                    title = "Smart App Sorting",
                     icon = "📊",
-                    description = "See how much time you spend in each app with usage statistics.",
+                    description = "Let Saint John learn which apps you use most to show them first.",
                     isGranted = usageStatsGranted,
-                    onGrant = {
-                        onRequestUsageStatsPermission()
-                        scope.launch {
-                            kotlinx.coroutines.delay(500)
-                            usageStatsGranted = checkUsageStatsPermission()
-                        }
-                    },
+                    onGrant = onRequestUsageStatsPermission,
                     onNext = onComplete,
-                    onSkip = onComplete
+                    onSkip = onComplete,
+                    isLastPage = true
                 )
             }
         }
 
-        // Page indicators
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -434,7 +444,8 @@ fun PermissionPage(
     isGranted: Boolean,
     onGrant: () -> Unit,
     onNext: () -> Unit,
-    onSkip: () -> Unit
+    onSkip: () -> Unit,
+    isLastPage: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -491,7 +502,7 @@ fun PermissionPage(
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
-                Text("Continue", fontSize = 18.sp)
+                Text(if (isLastPage) "Get Started" else "Continue", fontSize = 18.sp)
             }
         } else {
             Button(
@@ -513,7 +524,7 @@ fun PermissionPage(
                 onClick = onSkip,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Skip", fontSize = 16.sp)
+                Text(if (isLastPage) "Skip & Start" else "Skip", fontSize = 16.sp)
             }
         }
     }
