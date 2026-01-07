@@ -46,10 +46,6 @@ class WeatherRepositoryImpl @Inject constructor(
             )
 
             weatherDao.insertWeather(entity)
-
-            // Clean up old weather data (older than 1 hour)
-            val oneHourAgo = System.currentTimeMillis() - (60 * 60 * 1000)
-            weatherDao.deleteOldWeather(oneHourAgo)
         } catch (e: Exception) {
             e.printStackTrace()
             // Keep cached data on error
@@ -79,10 +75,6 @@ class WeatherRepositoryImpl @Inject constructor(
             )
 
             weatherDao.insertWeather(entity)
-
-            // Clean up old weather data (older than 1 hour)
-            val oneHourAgo = System.currentTimeMillis() - (60 * 60 * 1000)
-            weatherDao.deleteOldWeather(oneHourAgo)
         } catch (e: Exception) {
             e.printStackTrace()
             // Keep cached data on error

@@ -48,7 +48,8 @@ fun RootScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                weatherViewModel.refreshWeather()
+                // Use balanced accuracy for automatic background refreshes
+                weatherViewModel.refreshWeather(forceAccurateLocation = false)
                 calendarViewModel.refreshEvents()
             }
         }
@@ -62,7 +63,8 @@ fun RootScreen(
     LaunchedEffect(Unit) {
         while (true) {
             delay(30 * 60 * 1000L) // 30 minutes
-            weatherViewModel.refreshWeather()
+            // Use balanced accuracy for automatic background refreshes
+            weatherViewModel.refreshWeather(forceAccurateLocation = false)
             calendarViewModel.refreshEvents()
         }
     }

@@ -53,21 +53,23 @@ class WeatherViewModel @Inject constructor(
         refreshWeather()
     }
 
-    fun refreshWeather(location: String? = null) {
+    fun refreshWeather(location: String? = null, forceAccurateLocation: Boolean = true) {
         viewModelScope.launch {
             _isRefreshing.value = true
             try {
-                // Try to get current location first
-                val locationData = getLocationUseCase.getCurrentLocation()
+                // Force high accuracy when user explicitly refreshes to get fresh location
+                // Use balanced accuracy for automatic background refreshes
+                val locationData = getLocationUseCase.getCurrentLocation(forceHighAccuracy = forceAccurateLocation)
                 if (locationData != null) {
                     weatherRepository.refreshWeatherByCoords(
                         latitude = locationData.latitude,
                         longitude = locationData.longitude
                     )
-                } else {
-                    // Fall back to city name if location not available
+                } else if (location != null) {
+                    // Only use city name if explicitly provided
                     weatherRepository.refreshWeather(location)
                 }
+                // If no location available, keep existing weather data
             } finally {
                 _isRefreshing.value = false
             }

@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "weather")
 data class WeatherEntity(
     @PrimaryKey
+    val id: Int = 1, // Single row with ID 1 for current weather
     val location: String,
     val temp: Int,
     val feelsLike: Int,

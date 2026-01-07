@@ -39,7 +39,7 @@ class GetLocationUseCase @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    suspend fun getCurrentLocation(): LocationData? {
+    suspend fun getCurrentLocation(forceHighAccuracy: Boolean = false): LocationData? {
         if (!hasLocationPermission()) {
             return null
         }
@@ -48,8 +48,16 @@ class GetLocationUseCase @Inject constructor(
             suspendCancellableCoroutine { continuation ->
                 val cancellationTokenSource = CancellationTokenSource()
 
+                // Use HIGH_ACCURACY when user explicitly refreshes for fresh location
+                // Use BALANCED_POWER_ACCURACY for automatic updates to save battery
+                val priority = if (forceHighAccuracy) {
+                    Priority.PRIORITY_HIGH_ACCURACY
+                } else {
+                    Priority.PRIORITY_BALANCED_POWER_ACCURACY
+                }
+
                 fusedLocationClient.getCurrentLocation(
-                    Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                    priority,
                     cancellationTokenSource.token
                 ).addOnSuccessListener { location: Location? ->
                     if (location != null) {
@@ -60,10 +68,12 @@ class GetLocationUseCase @Inject constructor(
                             )
                         )
                     } else {
-                        continuation.resume(null)
+                        // If location request fails, try last known location
+                        tryLastKnownLocation(continuation)
                     }
                 }.addOnFailureListener {
-                    continuation.resume(null)
+                    // On failure, try to get last known location
+                    tryLastKnownLocation(continuation)
                 }
 
                 continuation.invokeOnCancellation {
@@ -72,6 +82,36 @@ class GetLocationUseCase @Inject constructor(
             }
         } catch (e: SecurityException) {
             null
+        }
+    }
+
+    private fun tryLastKnownLocation(continuation: kotlin.coroutines.Continuation<LocationData?>) {
+        try {
+            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                if (location != null) {
+                    // Only use last known location if it's less than 30 minutes old
+                    val locationAge = System.currentTimeMillis() - location.time
+                    val thirtyMinutesInMillis = 30 * 60 * 1000
+
+                    if (locationAge < thirtyMinutesInMillis) {
+                        continuation.resume(
+                            LocationData(
+                                latitude = location.latitude,
+                                longitude = location.longitude
+                            )
+                        )
+                    } else {
+                        // Location is too old, don't use it
+                        continuation.resume(null)
+                    }
+                } else {
+                    continuation.resume(null)
+                }
+            }.addOnFailureListener {
+                continuation.resume(null)
+            }
+        } catch (e: SecurityException) {
+            continuation.resume(null)
         }
     }
 }

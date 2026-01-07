@@ -80,6 +80,29 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Drop old weather table and create new one with id as primary key
+        database.execSQL("DROP TABLE IF EXISTS weather")
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS weather (
+                id INTEGER PRIMARY KEY NOT NULL,
+                location TEXT NOT NULL,
+                temp INTEGER NOT NULL,
+                feelsLike INTEGER NOT NULL,
+                condition TEXT NOT NULL,
+                description TEXT NOT NULL,
+                tempMin INTEGER NOT NULL,
+                tempMax INTEGER NOT NULL,
+                humidity INTEGER NOT NULL,
+                pressure INTEGER NOT NULL,
+                iconCode TEXT NOT NULL,
+                timestamp INTEGER NOT NULL
+            )
+        """.trimIndent())
+    }
+}
+
 @Database(
     entities = [
         AppPreferenceEntity::class,
@@ -88,7 +111,7 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         ConversationEntity::class,
         MessageEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class LauncherDatabase : RoomDatabase() {

@@ -8,6 +8,7 @@ import com.jonaylor.saintjohn.data.local.MIGRATION_2_3
 import com.jonaylor.saintjohn.data.local.MIGRATION_3_4
 import com.jonaylor.saintjohn.data.local.MIGRATION_4_5
 import com.jonaylor.saintjohn.data.local.MIGRATION_5_6
+import com.jonaylor.saintjohn.data.local.MIGRATION_6_7
 import com.jonaylor.saintjohn.data.local.PreferencesManager
 import com.jonaylor.saintjohn.data.local.dao.AppPreferenceDao
 import com.jonaylor.saintjohn.data.local.dao.ConversationDao
@@ -33,7 +34,7 @@ object DatabaseModule {
             LauncherDatabase::class.java,
             "launcher_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .fallbackToDestructiveMigration()
             .build()
     }
