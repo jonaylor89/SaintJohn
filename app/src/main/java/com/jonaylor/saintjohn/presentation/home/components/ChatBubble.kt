@@ -2,14 +2,27 @@ package com.jonaylor.saintjohn.presentation.home.components
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.util.Base64
 import android.widget.Toast
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import java.io.OutputStream
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import android.graphics.BitmapFactory
-import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -407,6 +420,38 @@ private fun GeneratedImage(image: MessageImage) {
         }
     }
 
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    var showOptions by remember { mutableStateOf(false) }
+
+    if (showOptions && bitmap != null) {
+        AlertDialog(
+            onDismissRequest = { showOptions = false },
+            title = { Text("Image Options") },
+            text = { Text("What would you like to do with this image?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        saveImageToGallery(context, bitmap)
+                        showOptions = false
+                    }
+                ) {
+                    Text("Save to Gallery")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        copyImageToClipboard(context, bitmap)
+                        showOptions = false
+                    }
+                ) {
+                    Text("Copy to Clipboard")
+                }
+            }
+        )
+    }
+
     bitmap?.let { bmp ->
         Image(
             bitmap = bmp.asImageBitmap(),
@@ -417,7 +462,15 @@ private fun GeneratedImage(image: MessageImage) {
                 .background(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     shape = RoundedCornerShape(8.dp)
-                ),
+                )
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showOptions = true
+                        }
+                    )
+                },
             contentScale = ContentScale.Fit
         )
     } ?: Box(
@@ -435,6 +488,58 @@ private fun GeneratedImage(image: MessageImage) {
             color = MaterialTheme.colorScheme.onErrorContainer,
             fontSize = 12.sp
         )
+    }
+}
+
+private fun saveImageToGallery(context: Context, bitmap: Bitmap): Uri? {
+    val filename = "SaintJohn_${System.currentTimeMillis()}.png"
+    var fos: OutputStream? = null
+    var imageUri: Uri? = null
+    val contentValues = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+        put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/SaintJohn")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+    }
+    
+    val resolver = context.contentResolver
+    
+    try {
+        imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+        imageUri?.let {
+            fos = resolver.openOutputStream(it)
+            if (fos != null) {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos!!)
+                fos!!.flush()
+            }
+        }
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && imageUri != null) {
+            contentValues.clear()
+            contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+            resolver.update(imageUri, contentValues, null, null)
+        }
+        
+        Toast.makeText(context, "Image saved to Gallery", Toast.LENGTH_SHORT).show()
+        return imageUri
+    } catch (e: Exception) {
+        e.printStackTrace()
+        Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
+        return null
+    } finally {
+        fos?.close()
+    }
+}
+
+private fun copyImageToClipboard(context: Context, bitmap: Bitmap) {
+    val uri = saveImageToGallery(context, bitmap)
+    if (uri != null) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newUri(context.contentResolver, "Image", uri)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(context, "Image copied to clipboard", Toast.LENGTH_SHORT).show()
     }
 }
 

@@ -13,6 +13,7 @@ import com.jonaylor.saintjohn.data.remote.dto.AnthropicMessage
 import com.jonaylor.saintjohn.data.remote.dto.AnthropicRequest
 import com.jonaylor.saintjohn.data.remote.dto.AnthropicStreamChunk
 import com.jonaylor.saintjohn.data.remote.dto.GeminiContent
+import com.jonaylor.saintjohn.data.remote.dto.GeminiGenerationConfig
 import com.jonaylor.saintjohn.data.remote.dto.GeminiPart
 import com.jonaylor.saintjohn.data.remote.dto.GeminiRequest
 import com.jonaylor.saintjohn.data.remote.dto.GeminiStreamChunk
@@ -512,9 +513,18 @@ class ChatRepositoryImpl @Inject constructor(
                         GeminiContent(parts = listOf(GeminiPart(text = systemPrompt)))
                     } else null
 
+                    // For image generation models, include Image in response modalities
+                    val isImageModel = selectedModel.contains("image") || 
+                                       selectedModel.contains("nano-banana") ||
+                                       selectedModel == "gemini-2.5-flash-preview-native-audio-dialog"
+                    val generationConfig = if (isImageModel) {
+                        GeminiGenerationConfig(responseModalities = listOf("TEXT", "IMAGE"))
+                    } else null
+
                     val request = GeminiRequest(
                         contents = geminiContents,
-                        systemInstruction = systemInstruction
+                        systemInstruction = systemInstruction,
+                        generationConfig = generationConfig
                     )
 
                     val responseBody = geminiApi.streamGenerateContent(

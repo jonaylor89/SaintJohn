@@ -23,8 +23,8 @@ class GeminiDtoTest {
     @Test
     fun `GeminiPart should parse inline image data`() {
         val json = """{
-            "inline_data": {
-                "mime_type": "image/png",
+            "inlineData": {
+                "mimeType": "image/png",
                 "data": "iVBORw0KGgoAAAANS"
             }
         }"""
@@ -40,8 +40,8 @@ class GeminiDtoTest {
     fun `GeminiPart should parse mixed text and image`() {
         val json = """{
             "text": "Here is your image",
-            "inline_data": {
-                "mime_type": "image/jpeg",
+            "inlineData": {
+                "mimeType": "image/jpeg",
                 "data": "base64imagedata"
             }
         }"""
@@ -70,7 +70,7 @@ class GeminiDtoTest {
                 "content": {
                     "parts": [
                         {"text": "Here is the image"},
-                        {"inline_data": {"mime_type": "image/png", "data": "base64data"}}
+                        {"inlineData": {"mimeType": "image/png", "data": "base64data"}}
                     ],
                     "role": "model"
                 },
