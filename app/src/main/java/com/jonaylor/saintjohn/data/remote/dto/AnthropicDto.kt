@@ -7,7 +7,8 @@ data class AnthropicRequest(
     val messages: List<AnthropicMessage>,
     @SerializedName("max_tokens")
     val maxTokens: Int = 4096,
-    val stream: Boolean = false
+    val stream: Boolean = false,
+    val system: String? = null
 )
 
 data class AnthropicMessage(
@@ -35,10 +36,32 @@ data class AnthropicStreamChunk(
     val index: Int? = null,
     val delta: AnthropicDelta? = null,
     @SerializedName("content_block")
-    val contentBlock: AnthropicContent? = null
+    val contentBlock: AnthropicContentBlock? = null
+)
+
+data class AnthropicContentBlock(
+    val type: String,
+    val text: String? = null
 )
 
 data class AnthropicDelta(
     val type: String,
-    val text: String? = null
+    val text: String? = null,
+    val thinking: String? = null
+)
+
+// Models list response
+data class AnthropicModelsResponse(
+    val data: List<AnthropicModel>,
+    @SerializedName("has_more")
+    val hasMore: Boolean = false
+)
+
+data class AnthropicModel(
+    val id: String,
+    @SerializedName("display_name")
+    val displayName: String?,
+    @SerializedName("created_at")
+    val createdAt: String?,
+    val type: String = "model"
 )

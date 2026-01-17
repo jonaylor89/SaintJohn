@@ -6,7 +6,9 @@ data class Message(
     val content: String,
     val role: MessageRole,
     val timestamp: Long = System.currentTimeMillis(),
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val thinking: String? = null,
+    val thinkingSummary: String? = null
 )
 
 enum class MessageRole {

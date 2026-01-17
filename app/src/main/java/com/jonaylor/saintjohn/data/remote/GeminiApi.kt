@@ -1,9 +1,11 @@
 package com.jonaylor.saintjohn.data.remote
 
+import com.jonaylor.saintjohn.data.remote.dto.GeminiModelsResponse
 import com.jonaylor.saintjohn.data.remote.dto.GeminiRequest
 import com.jonaylor.saintjohn.data.remote.dto.GeminiResponse
 import okhttp3.ResponseBody
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -26,6 +28,11 @@ interface GeminiApi {
         @Header("x-goog-api-key") apiKey: String,
         @Body request: GeminiRequest
     ): ResponseBody
+
+    @GET("v1beta/models")
+    suspend fun listModels(
+        @Query("key") apiKey: String
+    ): GeminiModelsResponse
 
     companion object {
         const val BASE_URL = "https://generativelanguage.googleapis.com/"

@@ -195,10 +195,20 @@ class ChatViewModel @Inject constructor(
         return preferencesManager.googleApiKey.firstOrNull() ?: ""
     }
 
-    suspend fun saveApiKeys(openaiKey: String, anthropicKey: String, googleKey: String) {
+    suspend fun getSystemPrompt(): String {
+        return preferencesManager.systemPrompt.firstOrNull() ?: ""
+    }
+
+    suspend fun saveSettings(openaiKey: String, anthropicKey: String, googleKey: String, systemPrompt: String) {
         preferencesManager.setOpenAIApiKey(openaiKey)
         preferencesManager.setAnthropicApiKey(anthropicKey)
         preferencesManager.setGoogleApiKey(googleKey)
+        preferencesManager.setSystemPrompt(systemPrompt)
+    }
+
+    @Deprecated("Use saveSettings instead", ReplaceWith("saveSettings(openaiKey, anthropicKey, googleKey, \"\")"))
+    suspend fun saveApiKeys(openaiKey: String, anthropicKey: String, googleKey: String) {
+        saveSettings(openaiKey, anthropicKey, googleKey, "")
     }
 
     private fun loadSelectedModel() {

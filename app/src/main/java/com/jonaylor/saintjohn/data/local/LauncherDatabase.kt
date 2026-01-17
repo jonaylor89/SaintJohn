@@ -103,6 +103,14 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
     }
 }
 
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add thinking columns to messages table for reasoning model support
+        database.execSQL("ALTER TABLE messages ADD COLUMN thinking TEXT")
+        database.execSQL("ALTER TABLE messages ADD COLUMN thinkingSummary TEXT")
+    }
+}
+
 @Database(
     entities = [
         AppPreferenceEntity::class,
@@ -111,7 +119,7 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         ConversationEntity::class,
         MessageEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class LauncherDatabase : RoomDatabase() {

@@ -6,42 +6,6 @@ A prioritized feature list for transforming the LLM chat page from a basic text-
 
 ## 🟢 Low Effort, High Impact
 
-### 1. **Markdown Rendering in Chat Bubbles**
-- **Description**: Render assistant responses as proper markdown with code blocks, bold, italics, lists, headers, and links. Currently just plain text.
-- **Difficulty**: Easy (1-2 days)
-- **Coding Agent Estimate**: 4-6 hours
-- **Maintenance**: Low — compose-markdown is stable, rarely needs updates
-- **User Value**: 🔥🔥🔥 High — code responses become readable and copyable, formatted text looks professional
-- **Implementation**: Add `compose-markdown` or `Markwon` library, update ChatBubble.kt
-
-### 2. **Code Block Syntax Highlighting + Copy Button**
-- **Description**: Syntax-highlighted code blocks with a one-tap copy button
-- **Difficulty**: Easy (1-2 days, couples with markdown)
-- **Coding Agent Estimate**: 3-5 hours (after markdown is done)
-- **Maintenance**: Low — highlighting themes rarely change
-- **User Value**: 🔥🔥🔥 High — essential for developers using LLM on mobile
-
-### 3. **Regenerate Last Response**
-- **Description**: Button to regenerate the last assistant response
-- **Difficulty**: Easy (half day)
-- **Coding Agent Estimate**: 2-3 hours
-- **Maintenance**: None — simple logic
-- **User Value**: 🔥🔥 Medium-High — quick retry when response isn't helpful
-
-### 4. **Edit & Resend User Message**
-- **Description**: Long-press a user message to edit and resend (regenerates from that point)
-- **Difficulty**: Easy-Medium (1-2 days)
-- **Coding Agent Estimate**: 4-6 hours
-- **Maintenance**: Low
-- **User Value**: 🔥🔥🔥 High — correcting typos or refining prompts without retyping
-
-### 5. **System Prompt Configuration**
-- **Description**: Allow users to set a custom system prompt per conversation or globally
-- **Difficulty**: Easy (1 day)
-- **Coding Agent Estimate**: 4-5 hours
-- **Maintenance**: Low — just a text field stored in preferences
-- **User Value**: 🔥🔥 Medium-High — personalize AI behavior, set coding context
-
 ---
 
 ## 🟡 Medium Effort, High Impact

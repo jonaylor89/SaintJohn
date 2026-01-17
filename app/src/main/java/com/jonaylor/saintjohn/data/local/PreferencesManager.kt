@@ -31,6 +31,25 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
         val SELECTED_OPENAI_MODEL = stringPreferencesKey("selected_openai_model")
         val SELECTED_ANTHROPIC_MODEL = stringPreferencesKey("selected_anthropic_model")
         val SELECTED_GOOGLE_MODEL = stringPreferencesKey("selected_google_model")
+        val SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
+
+        const val DEFAULT_SYSTEM_PROMPT = """You are a helpful assistant integrated into an Android launcher. You're speaking directly to the user on their phone.
+
+Be concise—mobile screens are small. Get to the point quickly. Use short paragraphs and bullet points when listing things.
+
+When writing code:
+- Use markdown code blocks with language tags
+- Keep examples minimal and runnable
+- Explain only what's necessary
+
+When answering questions:
+- Lead with the answer, then explain if needed
+- If you're unsure, say so briefly
+- Don't hedge excessively or over-qualify
+
+You can help with coding, writing, analysis, math, planning, and general questions. You have no access to the user's phone, apps, calendar, or location—you're a conversational assistant only.
+
+Match the user's energy and formality. If they're casual, be casual. If they're technical, be technical."""
     }
 
     val themeMode: Flow<String> = context.dataStore.data.map { preferences ->
@@ -150,6 +169,16 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
     suspend fun setSelectedGoogleModel(model: String) {
         context.dataStore.edit { preferences ->
             preferences[SELECTED_GOOGLE_MODEL] = model
+        }
+    }
+
+    val systemPrompt: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[SYSTEM_PROMPT] ?: DEFAULT_SYSTEM_PROMPT
+    }
+
+    suspend fun setSystemPrompt(prompt: String) {
+        context.dataStore.edit { preferences ->
+            preferences[SYSTEM_PROMPT] = prompt
         }
     }
 }

@@ -4,23 +4,33 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jonaylor.saintjohn.domain.model.Message
@@ -69,8 +79,26 @@ fun ChatBubble(
                     .padding(12.dp)
             ) {
                 Column {
+                    // Show thinking section for assistant messages with thinking content
+                    if (isAssistant && !message.thinking.isNullOrEmpty()) {
+                        ThinkingSection(
+                            thinking = message.thinking,
+                            thinkingSummary = message.thinkingSummary,
+                            messageId = message.id
+                        )
+                        if (message.content.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                    
                     if (message.role == MessageRole.ASSISTANT && message.content.isEmpty() && !message.isError) {
-                        ThinkingAnimation()
+                        // Show thinking animation only if there's no thinking content yet
+                        if (message.thinking.isNullOrEmpty()) {
+                            ThinkingAnimation()
+                        } else {
+                            // Thinking is happening but no answer yet - show indicator
+                            ThinkingInProgressIndicator()
+                        }
                     } else {
                         val textColor = when (message.role) {
                             MessageRole.USER -> MaterialTheme.colorScheme.onPrimaryContainer
@@ -82,12 +110,12 @@ fun ChatBubble(
                             MessageRole.SYSTEM -> MaterialTheme.colorScheme.onSecondaryContainer
                         }
 
-                        if (isAssistant && !message.isError) {
+                        if (isAssistant && !message.isError && message.content.isNotEmpty()) {
                             MarkdownText(
                                 markdown = message.content,
                                 color = textColor
                             )
-                        } else {
+                        } else if (message.content.isNotEmpty()) {
                             SelectionContainer {
                                 Text(
                                     text = message.content,
@@ -142,6 +170,166 @@ fun ChatBubble(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ThinkingSection(
+    thinking: String,
+    thinkingSummary: String?,
+    messageId: Long
+) {
+    var isExpanded by rememberSaveable(messageId) { mutableStateOf(false) }
+    val context = LocalContext.current
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(8.dp)
+    ) {
+        // Header row - always visible
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isExpanded = !isExpanded },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Psychology,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "Reasoning",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                    fontSize = 11.sp
+                )
+            }
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                // Copy thinking button when expanded
+                if (isExpanded) {
+                    IconButton(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("thinking", thinking)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Reasoning copied", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(18.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copy reasoning",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+                
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        
+        // Preview text when collapsed
+        if (!isExpanded) {
+            val preview = thinkingSummary ?: thinking.take(80).replace("\n", " ")
+            Text(
+                text = if (preview.length >= 80) "$preview..." else preview,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        
+        // Expanded content
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            SelectionContainer {
+                Text(
+                    text = thinking,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThinkingInProgressIndicator() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Psychology,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+            modifier = Modifier.size(14.dp)
+        )
+        Text(
+            text = "Generating response",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            fontSize = 12.sp
+        )
+        ThinkingDots()
+    }
+}
+
+@Composable
+private fun ThinkingDots() {
+    var visibleDots by remember { mutableStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(400)
+            visibleDots = (visibleDots + 1) % 4
+        }
+    }
+
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        repeat(3) { index ->
+            Box(
+                modifier = Modifier
+                    .size(4.dp)
+                    .alpha(if (index < visibleDots) 1f else 0.3f)
+                    .background(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        shape = CircleShape
+                    )
+            )
         }
     }
 }

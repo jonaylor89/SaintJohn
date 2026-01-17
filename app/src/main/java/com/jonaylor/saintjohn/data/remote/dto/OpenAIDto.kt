@@ -62,7 +62,9 @@ data class OpenAIDelta(
     @SerializedName("role")
     val role: String?,
     @SerializedName("content")
-    val content: String?
+    val content: String?,
+    @SerializedName("reasoning_content")
+    val reasoningContent: String? = null
 )
 
 data class OpenAIChoice(

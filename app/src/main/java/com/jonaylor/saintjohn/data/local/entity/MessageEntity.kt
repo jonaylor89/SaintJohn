@@ -11,5 +11,7 @@ data class MessageEntity(
     val content: String,
     val role: String, // USER, ASSISTANT, SYSTEM
     val timestamp: Long,
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val thinking: String? = null,
+    val thinkingSummary: String? = null
 )

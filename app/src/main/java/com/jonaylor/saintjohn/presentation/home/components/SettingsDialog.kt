@@ -10,6 +10,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -17,21 +18,25 @@ fun SettingsBottomSheet(
     openaiKey: String,
     anthropicKey: String,
     googleKey: String,
+    systemPrompt: String,
     onOpenAIKeyChange: (String) -> Unit,
     onAnthropicKeyChange: (String) -> Unit,
     onGoogleKeyChange: (String) -> Unit,
+    onSystemPromptChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
     var localOpenAIKey by remember { mutableStateOf(openaiKey) }
     var localAnthropicKey by remember { mutableStateOf(anthropicKey) }
     var localGoogleKey by remember { mutableStateOf(googleKey) }
+    var localSystemPrompt by remember { mutableStateOf(systemPrompt) }
 
     // Update local state when props change (e.g., when dialog reopens with new values)
-    LaunchedEffect(openaiKey, anthropicKey, googleKey) {
+    LaunchedEffect(openaiKey, anthropicKey, googleKey, systemPrompt) {
         localOpenAIKey = openaiKey
         localAnthropicKey = anthropicKey
         localGoogleKey = googleKey
+        localSystemPrompt = systemPrompt
     }
 
     ModalBottomSheet(
@@ -92,6 +97,45 @@ fun SettingsBottomSheet(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                HorizontalDivider()
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // System Prompt
+                Text(
+                    text = "System Prompt",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Customize how the AI responds. This applies to all conversations.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = localSystemPrompt,
+                    onValueChange = { localSystemPrompt = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 100.dp),
+                    placeholder = { Text("e.g., You are a helpful assistant. Be concise and direct.") },
+                    minLines = 3,
+                    maxLines = 6,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
                 // Action buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -108,6 +152,7 @@ fun SettingsBottomSheet(
                             onOpenAIKeyChange(localOpenAIKey)
                             onAnthropicKeyChange(localAnthropicKey)
                             onGoogleKeyChange(localGoogleKey)
+                            onSystemPromptChange(localSystemPrompt)
                             onSave()
                         }
                     ) {

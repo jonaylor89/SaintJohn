@@ -3,7 +3,9 @@ package com.jonaylor.saintjohn.data.remote.dto
 import com.google.gson.annotations.SerializedName
 
 data class GeminiRequest(
-    val contents: List<GeminiContent>
+    val contents: List<GeminiContent>,
+    @SerializedName("system_instruction")
+    val systemInstruction: GeminiContent? = null
 )
 
 data class GeminiContent(
@@ -27,4 +29,19 @@ data class GeminiCandidate(
 
 data class GeminiStreamChunk(
     val candidates: List<GeminiCandidate>? = null
+)
+
+// Models list response
+data class GeminiModelsResponse(
+    val models: List<GeminiModel>
+)
+
+data class GeminiModel(
+    val name: String,
+    val version: String? = null,
+    val displayName: String? = null,
+    val description: String? = null,
+    val inputTokenLimit: Int? = null,
+    val outputTokenLimit: Int? = null,
+    val supportedGenerationMethods: List<String>? = null
 )

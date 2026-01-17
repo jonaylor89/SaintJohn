@@ -278,6 +278,9 @@ class ChatRepositoryImpl @Inject constructor(
             )
             val messageId = messageDao.insertMessage(assistantMessage)
 
+            // Get system prompt
+            val systemPrompt = preferencesManager.systemPrompt.first()
+
             // Make streaming API call
             val assistantContent = when (provider) {
                 LLMProvider.OPENAI -> {
@@ -285,12 +288,17 @@ class ChatRepositoryImpl @Inject constructor(
                     val history = messageDao.getMessagesByConversation(conversationId).first()
                         .filter { it.id != messageId } // Exclude the placeholder
 
-                    // Convert to OpenAI format
-                    val openAIMessages = history.map { msg ->
-                        OpenAIMessage(
-                            role = msg.role.lowercase(),
-                            content = msg.content
-                        )
+                    // Convert to OpenAI format with optional system prompt
+                    val openAIMessages = buildList {
+                        if (systemPrompt.isNotBlank()) {
+                            add(OpenAIMessage(role = "system", content = systemPrompt))
+                        }
+                        addAll(history.map { msg ->
+                            OpenAIMessage(
+                                role = msg.role.lowercase(),
+                                content = msg.content
+                            )
+                        })
                     }
 
                     // Get selected model for this provider
@@ -309,6 +317,7 @@ class ChatRepositoryImpl @Inject constructor(
                     )
 
                     val fullContent = StringBuilder()
+                    val fullThinking = StringBuilder()
                     val gson = Gson()
 
                     // Process stream line by line
@@ -321,23 +330,47 @@ class ChatRepositoryImpl @Inject constructor(
 
                                 try {
                                     val chunk = gson.fromJson(data, OpenAIStreamChunk::class.java)
-                                    chunk.choices.firstOrNull()?.delta?.content?.let { content ->
-                                        fullContent.append(content)
-
-                                        // Update the message in database in real-time
+                                    val delta = chunk.choices.firstOrNull()?.delta
+                                    
+                                    // Handle reasoning content (for o1, o3 models)
+                                    delta?.reasoningContent?.let { reasoning ->
+                                        fullThinking.append(reasoning)
                                         messageDao.updateMessage(
                                             assistantMessage.copy(
                                                 id = messageId,
-                                                content = fullContent.toString()
+                                                content = fullContent.toString(),
+                                                thinking = fullThinking.toString()
                                             )
                                         )
-
+                                    }
+                                    
+                                    // Handle regular content
+                                    delta?.content?.let { content ->
+                                        fullContent.append(content)
+                                        messageDao.updateMessage(
+                                            assistantMessage.copy(
+                                                id = messageId,
+                                                content = fullContent.toString(),
+                                                thinking = fullThinking.toString().takeIf { it.isNotEmpty() }
+                                            )
+                                        )
                                         onChunk(content)
                                     }
                                 } catch (e: Exception) {
                                     // Skip malformed chunks
                                 }
                             }
+                    }
+
+                    // Store final thinking content
+                    if (fullThinking.isNotEmpty()) {
+                        messageDao.updateMessage(
+                            assistantMessage.copy(
+                                id = messageId,
+                                content = fullContent.toString(),
+                                thinking = fullThinking.toString()
+                            )
+                        )
                     }
 
                     fullContent.toString()
@@ -359,11 +392,12 @@ class ChatRepositoryImpl @Inject constructor(
                     // Get selected model for this provider
                     val selectedModel = getSelectedModel(provider)
 
-                    // Make streaming API call
+                    // Make streaming API call with system prompt
                     val request = AnthropicRequest(
                         model = selectedModel,
                         messages = anthropicMessages,
-                        stream = true
+                        stream = true,
+                        system = systemPrompt.takeIf { it.isNotBlank() }
                     )
 
                     val responseBody = anthropicApi.createMessageStream(
@@ -372,7 +406,9 @@ class ChatRepositoryImpl @Inject constructor(
                     )
 
                     val fullContent = StringBuilder()
+                    val fullThinking = StringBuilder()
                     val gson = Gson()
+                    var currentBlockType: String? = null
 
                     // Process stream line by line
                     responseBody.byteStream().bufferedReader().use { reader ->
@@ -389,20 +425,43 @@ class ChatRepositoryImpl @Inject constructor(
 
                                         // Handle different chunk types
                                         when (chunk.type) {
+                                            "content_block_start" -> {
+                                                // Track the type of the current block (thinking vs text)
+                                                currentBlockType = chunk.contentBlock?.type
+                                            }
                                             "content_block_delta" -> {
-                                                chunk.delta?.text?.let { content ->
-                                                    fullContent.append(content)
-
-                                                    // Update the message in database in real-time
-                                                    messageDao.updateMessage(
-                                                        assistantMessage.copy(
-                                                            id = messageId,
-                                                            content = fullContent.toString()
+                                                val deltaType = chunk.delta?.type
+                                                val text = chunk.delta?.text
+                                                
+                                                // Handle thinking delta (extended thinking)
+                                                if (deltaType == "thinking_delta" || currentBlockType == "thinking") {
+                                                    text?.let { thinking ->
+                                                        fullThinking.append(thinking)
+                                                        messageDao.updateMessage(
+                                                            assistantMessage.copy(
+                                                                id = messageId,
+                                                                content = fullContent.toString(),
+                                                                thinking = fullThinking.toString()
+                                                            )
                                                         )
-                                                    )
-
-                                                    onChunk(content)
+                                                    }
+                                                } else {
+                                                    // Handle regular text delta
+                                                    text?.let { content ->
+                                                        fullContent.append(content)
+                                                        messageDao.updateMessage(
+                                                            assistantMessage.copy(
+                                                                id = messageId,
+                                                                content = fullContent.toString(),
+                                                                thinking = fullThinking.toString().takeIf { it.isNotEmpty() }
+                                                            )
+                                                        )
+                                                        onChunk(content)
+                                                    }
                                                 }
+                                            }
+                                            "content_block_stop" -> {
+                                                currentBlockType = null
                                             }
                                             "message_stop" -> {
                                                 // End of stream
@@ -414,6 +473,17 @@ class ChatRepositoryImpl @Inject constructor(
                                     }
                                 }
                             }
+                    }
+
+                    // Store final thinking content
+                    if (fullThinking.isNotEmpty()) {
+                        messageDao.updateMessage(
+                            assistantMessage.copy(
+                                id = messageId,
+                                content = fullContent.toString(),
+                                thinking = fullThinking.toString()
+                            )
+                        )
                     }
 
                     fullContent.toString()
@@ -435,8 +505,15 @@ class ChatRepositoryImpl @Inject constructor(
                     // Get selected model for this provider
                     val selectedModel = getSelectedModel(provider)
 
-                    // Make streaming API call
-                    val request = GeminiRequest(contents = geminiContents)
+                    // Make streaming API call with system instruction
+                    val systemInstruction = if (systemPrompt.isNotBlank()) {
+                        GeminiContent(parts = listOf(GeminiPart(text = systemPrompt)))
+                    } else null
+
+                    val request = GeminiRequest(
+                        contents = geminiContents,
+                        systemInstruction = systemInstruction
+                    )
 
                     val responseBody = geminiApi.streamGenerateContent(
                         model = selectedModel,
@@ -521,45 +598,145 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun getAvailableModels(provider: LLMProvider): Result<List<String>> {
         return try {
+            val apiKey = when (provider) {
+                LLMProvider.OPENAI -> preferencesManager.openaiApiKey.first()
+                LLMProvider.ANTHROPIC -> preferencesManager.anthropicApiKey.first()
+                LLMProvider.GOOGLE -> preferencesManager.googleApiKey.first()
+            }
+
+            // If no API key, return fallback static list
+            if (apiKey.isBlank()) {
+                return Result.success(getFallbackModels(provider))
+            }
+
             when (provider) {
                 LLMProvider.OPENAI -> {
-                    // Curated list of latest/popular OpenAI models (2025)
-                    val popularModels = listOf(
-                        "gpt-5-pro",       // Smartest, most precise GPT-5
-                        "gpt-5",           // Best for coding and agentic tasks
-                        "gpt-5-mini",      // Faster, cost-efficient GPT-5
-                        "gpt-5-nano",      // Fastest, most cost-efficient GPT-5
-                        "gpt-4.1",         // Latest GPT-4 flagship
-                        "gpt-4.1-mini",    // Efficient GPT-4.1
-                        "gpt-4o",          // GPT-4 Omni - multimodal
-                        "gpt-4o-mini",     // Fast and cheap GPT-4o
-                        "o3-mini",         // Latest reasoning model
-                        "o1",              // Previous reasoning model
-                        "o1-mini"          // Fast reasoning model
-                    )
-                    Result.success(popularModels)
+                    // Fetch models dynamically from OpenAI API
+                    val response = openAIApi.listModels("Bearer $apiKey")
+                    val chatModels = response.data
+                        .map { it.id }
+                        .filter { id ->
+                            // Filter to chat-capable models only
+                            id.startsWith("gpt-") || 
+                            id.startsWith("o1") || 
+                            id.startsWith("o3") ||
+                            id.startsWith("o4")
+                        }
+                        .filterNot { id ->
+                            // Exclude embedding, audio, and internal models
+                            id.contains("embedding") ||
+                            id.contains("whisper") ||
+                            id.contains("tts") ||
+                            id.contains("dall-e") ||
+                            id.contains("realtime") ||
+                            id.contains("transcription") ||
+                            id.contains("audio")
+                        }
+                        .sortedByDescending { id ->
+                            // Sort by model family priority
+                            when {
+                                id.startsWith("gpt-5") -> 5
+                                id.startsWith("o3") || id.startsWith("o4") -> 4
+                                id.startsWith("gpt-4") -> 3
+                                id.startsWith("o1") -> 2
+                                else -> 1
+                            }
+                        }
+                    
+                    if (chatModels.isEmpty()) {
+                        Result.success(getFallbackModels(provider))
+                    } else {
+                        Result.success(chatModels)
+                    }
                 }
 
                 LLMProvider.ANTHROPIC -> {
-                    // Latest Claude models
-                    Result.success(listOf(
-                        "claude-sonnet-4-5-20250929",   // Smartest model for complex agents and coding
-                        "claude-haiku-4-5-20251001",    // Fastest model with near-frontier intelligence
-                        "claude-opus-4-1-20250805"      // Exceptional model for specialized reasoning
-                    ))
+                    // Fetch models dynamically from Anthropic API
+                    val response = anthropicApi.listModels(apiKey)
+                    val models = response.data
+                        .map { it.id }
+                        .filter { id ->
+                            // Only include Claude chat models
+                            id.startsWith("claude-")
+                        }
+                        .sortedByDescending { id ->
+                            // Sort by model tier priority
+                            when {
+                                id.contains("opus") -> 3
+                                id.contains("sonnet") -> 2
+                                id.contains("haiku") -> 1
+                                else -> 0
+                            }
+                        }
+                    
+                    if (models.isEmpty()) {
+                        Result.success(getFallbackModels(provider))
+                    } else {
+                        Result.success(models)
+                    }
                 }
 
                 LLMProvider.GOOGLE -> {
-                    // Latest Gemini models
-                    Result.success(listOf(
-                        "gemini-2.5-pro",      // State-of-the-art reasoning model
-                        "gemini-2.5-flash",    // Best price-performance balance
-                        "gemini-2.0-flash"     // Stable workhorse model
-                    ))
+                    // Fetch models dynamically from Gemini API
+                    val response = geminiApi.listModels(apiKey)
+                    val chatModels = response.models
+                        .filter { model ->
+                            // Only include models that support generateContent
+                            model.supportedGenerationMethods?.contains("generateContent") == true
+                        }
+                        .map { model ->
+                            // Extract model ID from "models/gemini-xxx" format
+                            model.name.removePrefix("models/")
+                        }
+                        .filter { id ->
+                            // Only include Gemini models (not legacy PaLM)
+                            id.startsWith("gemini-")
+                        }
+                        .sortedByDescending { id ->
+                            // Sort by model generation and tier
+                            when {
+                                id.contains("3") && id.contains("pro") -> 6
+                                id.contains("3") && id.contains("flash") -> 5
+                                id.contains("2.5") && id.contains("pro") -> 4
+                                id.contains("2.5") && id.contains("flash") -> 3
+                                id.contains("2.0") -> 2
+                                else -> 1
+                            }
+                        }
+                    
+                    if (chatModels.isEmpty()) {
+                        Result.success(getFallbackModels(provider))
+                    } else {
+                        Result.success(chatModels)
+                    }
                 }
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            // On any error, fall back to static list
+            android.util.Log.e("ChatRepository", "Failed to fetch models dynamically", e)
+            Result.success(getFallbackModels(provider))
+        }
+    }
+
+    private fun getFallbackModels(provider: LLMProvider): List<String> {
+        return when (provider) {
+            LLMProvider.OPENAI -> listOf(
+                "gpt-4o",
+                "gpt-4o-mini",
+                "gpt-4-turbo",
+                "o1",
+                "o1-mini"
+            )
+            LLMProvider.ANTHROPIC -> listOf(
+                "claude-sonnet-4-5-20250929",
+                "claude-haiku-4-5-20251001",
+                "claude-opus-4-1-20250805"
+            )
+            LLMProvider.GOOGLE -> listOf(
+                "gemini-2.5-pro",
+                "gemini-2.5-flash",
+                "gemini-2.0-flash"
+            )
         }
     }
 
@@ -586,7 +763,9 @@ class ChatRepositoryImpl @Inject constructor(
             content = content,
             role = MessageRole.valueOf(role),
             timestamp = timestamp,
-            isError = isError
+            isError = isError,
+            thinking = thinking,
+            thinkingSummary = thinkingSummary
         )
     }
 }

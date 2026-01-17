@@ -43,13 +43,15 @@ fun HomeScreen(
     var openaiKey by remember { mutableStateOf("") }
     var anthropicKey by remember { mutableStateOf("") }
     var googleKey by remember { mutableStateOf("") }
+    var systemPrompt by remember { mutableStateOf("") }
 
-    // Load API keys when settings dialog opens
+    // Load API keys and system prompt when settings dialog opens
     LaunchedEffect(showSettings) {
         if (showSettings) {
             openaiKey = viewModel.getOpenAIKey()
             anthropicKey = viewModel.getAnthropicKey()
             googleKey = viewModel.getGoogleKey()
+            systemPrompt = viewModel.getSystemPrompt()
         }
     }
 
@@ -183,13 +185,15 @@ fun HomeScreen(
                 openaiKey = openaiKey,
                 anthropicKey = anthropicKey,
                 googleKey = googleKey,
+                systemPrompt = systemPrompt,
                 onOpenAIKeyChange = { openaiKey = it },
                 onAnthropicKeyChange = { anthropicKey = it },
                 onGoogleKeyChange = { googleKey = it },
+                onSystemPromptChange = { systemPrompt = it },
                 onDismiss = { showSettings = false },
                 onSave = {
                     coroutineScope.launch {
-                        viewModel.saveApiKeys(openaiKey, anthropicKey, googleKey)
+                        viewModel.saveSettings(openaiKey, anthropicKey, googleKey, systemPrompt)
                         showSettings = false
                     }
                 }
