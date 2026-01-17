@@ -21,7 +21,9 @@ import com.jonaylor.saintjohn.data.remote.dto.OpenAIRequest
 import com.jonaylor.saintjohn.data.remote.dto.OpenAIStreamChunk
 import com.jonaylor.saintjohn.domain.model.LLMProvider
 import com.jonaylor.saintjohn.domain.model.Message
+import com.jonaylor.saintjohn.domain.model.MessageImage
 import com.jonaylor.saintjohn.domain.model.MessageRole
+import com.google.gson.reflect.TypeToken
 import com.jonaylor.saintjohn.domain.repository.ChatRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -522,6 +524,7 @@ class ChatRepositoryImpl @Inject constructor(
                     )
 
                     val fullContent = StringBuilder()
+                    val collectedImages = mutableListOf<MessageImage>()
                     val gson = Gson()
 
                     // Process stream line by line
@@ -537,19 +540,35 @@ class ChatRepositoryImpl @Inject constructor(
 
                                     try {
                                         val chunk = gson.fromJson(data, GeminiStreamChunk::class.java)
-                                        chunk.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text?.let { content ->
-                                            fullContent.append(content)
-
-                                            // Update the message in database in real-time
-                                            messageDao.updateMessage(
-                                                assistantMessage.copy(
-                                                    id = messageId,
-                                                    content = fullContent.toString()
-                                                )
-                                            )
-
-                                            onChunk(content)
+                                        chunk.candidates?.firstOrNull()?.content?.parts?.forEach { part ->
+                                            // Handle text parts
+                                            part.text?.let { content ->
+                                                fullContent.append(content)
+                                                onChunk(content)
+                                            }
+                                            
+                                            // Handle image parts (Nano Banana image generation)
+                                            part.inlineData?.let { inlineData ->
+                                                if (inlineData.mimeType.startsWith("image/")) {
+                                                    collectedImages.add(
+                                                        MessageImage(
+                                                            data = inlineData.data,
+                                                            mimeType = inlineData.mimeType
+                                                        )
+                                                    )
+                                                    android.util.Log.d("GeminiStream", "Received image: ${inlineData.mimeType}")
+                                                }
+                                            }
                                         }
+
+                                        // Update the message in database in real-time
+                                        messageDao.updateMessage(
+                                            assistantMessage.copy(
+                                                id = messageId,
+                                                content = fullContent.toString(),
+                                                imagesJson = collectedImages.toJson()
+                                            )
+                                        )
                                     } catch (e: Exception) {
                                         android.util.Log.e("GeminiStream", "Error parsing chunk: $data", e)
                                     }
@@ -757,6 +776,15 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     private fun MessageEntity.toDomainModel(): Message {
+        val images = imagesJson?.let { json ->
+            try {
+                val type = object : TypeToken<List<MessageImage>>() {}.type
+                Gson().fromJson<List<MessageImage>>(json, type)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } ?: emptyList()
+
         return Message(
             id = id,
             conversationId = conversationId,
@@ -765,7 +793,12 @@ class ChatRepositoryImpl @Inject constructor(
             timestamp = timestamp,
             isError = isError,
             thinking = thinking,
-            thinkingSummary = thinkingSummary
+            thinkingSummary = thinkingSummary,
+            images = images
         )
+    }
+
+    private fun List<MessageImage>.toJson(): String? {
+        return if (isEmpty()) null else Gson().toJson(this)
     }
 }

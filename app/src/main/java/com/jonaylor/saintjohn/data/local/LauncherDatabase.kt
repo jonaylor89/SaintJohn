@@ -111,6 +111,13 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add imagesJson column to messages table for image generation support
+        database.execSQL("ALTER TABLE messages ADD COLUMN imagesJson TEXT")
+    }
+}
+
 @Database(
     entities = [
         AppPreferenceEntity::class,
@@ -119,7 +126,7 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         ConversationEntity::class,
         MessageEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class LauncherDatabase : RoomDatabase() {

@@ -8,6 +8,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,9 +34,12 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jonaylor.saintjohn.domain.model.Message
+import com.jonaylor.saintjohn.domain.model.MessageImage
 import com.jonaylor.saintjohn.domain.model.MessageRole
 import java.text.SimpleDateFormat
 import java.util.*
@@ -91,7 +97,7 @@ fun ChatBubble(
                         }
                     }
                     
-                    if (message.role == MessageRole.ASSISTANT && message.content.isEmpty() && !message.isError) {
+                    if (message.role == MessageRole.ASSISTANT && message.content.isEmpty() && message.images.isEmpty() && !message.isError) {
                         // Show thinking animation only if there's no thinking content yet
                         if (message.thinking.isNullOrEmpty()) {
                             ThinkingAnimation()
@@ -108,6 +114,14 @@ fun ChatBubble(
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             }
                             MessageRole.SYSTEM -> MaterialTheme.colorScheme.onSecondaryContainer
+                        }
+
+                        // Render images if present
+                        if (message.images.isNotEmpty()) {
+                            MessageImagesSection(images = message.images)
+                            if (message.content.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
                         }
 
                         if (isAssistant && !message.isError && message.content.isNotEmpty()) {
@@ -367,6 +381,60 @@ private fun ThinkingAnimation() {
                     )
             )
         }
+    }
+}
+
+@Composable
+private fun MessageImagesSection(images: List<MessageImage>) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        images.forEach { image ->
+            GeneratedImage(image = image)
+        }
+    }
+}
+
+@Composable
+private fun GeneratedImage(image: MessageImage) {
+    val bitmap = remember(image.data) {
+        try {
+            val bytes = Base64.decode(image.data, Base64.DEFAULT)
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        } catch (e: Exception) {
+            android.util.Log.e("ChatBubble", "Failed to decode image", e)
+            null
+        }
+    }
+
+    bitmap?.let { bmp ->
+        Image(
+            bitmap = bmp.asImageBitmap(),
+            contentDescription = "Generated image",
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 300.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = RoundedCornerShape(8.dp)
+                ),
+            contentScale = ContentScale.Fit
+        )
+    } ?: Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(100.dp)
+            .background(
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = RoundedCornerShape(8.dp)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Failed to load image",
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            fontSize = 12.sp
+        )
     }
 }
 

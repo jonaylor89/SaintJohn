@@ -13,5 +13,6 @@ data class MessageEntity(
     val timestamp: Long,
     val isError: Boolean = false,
     val thinking: String? = null,
-    val thinkingSummary: String? = null
+    val thinkingSummary: String? = null,
+    val imagesJson: String? = null // JSON array of {data, mimeType} objects
 )

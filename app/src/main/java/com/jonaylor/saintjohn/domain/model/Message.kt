@@ -8,7 +8,13 @@ data class Message(
     val timestamp: Long = System.currentTimeMillis(),
     val isError: Boolean = false,
     val thinking: String? = null,
-    val thinkingSummary: String? = null
+    val thinkingSummary: String? = null,
+    val images: List<MessageImage> = emptyList()
+)
+
+data class MessageImage(
+    val data: String,
+    val mimeType: String
 )
 
 enum class MessageRole {
