@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import com.jonaylor.saintjohn.domain.model.Message
 import com.jonaylor.saintjohn.domain.model.MessageImage
 import com.jonaylor.saintjohn.domain.model.MessageRole
+import com.jonaylor.saintjohn.domain.model.ToolCall
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.delay
@@ -65,6 +66,7 @@ fun ChatBubble(
 ) {
     val context = LocalContext.current
     val isAssistant = message.role == MessageRole.ASSISTANT
+    val isTool = message.role == MessageRole.TOOL
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -77,7 +79,7 @@ fun ChatBubble(
         Column {
             Box(
                 modifier = Modifier
-                    .widthIn(max = if (isAssistant) 320.dp else 280.dp)
+                    .widthIn(max = if (isAssistant || isTool) 320.dp else 280.dp)
                     .background(
                         color = when (message.role) {
                             MessageRole.USER -> MaterialTheme.colorScheme.primaryContainer
@@ -87,6 +89,7 @@ fun ChatBubble(
                                 MaterialTheme.colorScheme.surfaceVariant
                             }
                             MessageRole.SYSTEM -> MaterialTheme.colorScheme.secondaryContainer
+                            MessageRole.TOOL -> MaterialTheme.colorScheme.tertiaryContainer
                         },
                         shape = RoundedCornerShape(
                             topStart = 16.dp,
@@ -109,8 +112,16 @@ fun ChatBubble(
                             Spacer(modifier = Modifier.height(8.dp))
                         }
                     }
+
+                    // Show tool call info if present
+                    if (isAssistant && message.toolCalls.isNotEmpty()) {
+                        ToolCallsSection(toolCalls = message.toolCalls)
+                        if (message.content.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
                     
-                    if (message.role == MessageRole.ASSISTANT && message.content.isEmpty() && message.images.isEmpty() && !message.isError) {
+                    if (isAssistant && message.content.isEmpty() && message.images.isEmpty() && !message.isError && message.toolCalls.isEmpty()) {
                         // Show thinking animation only if there's no thinking content yet
                         if (message.thinking.isNullOrEmpty()) {
                             ThinkingAnimation()
@@ -127,6 +138,7 @@ fun ChatBubble(
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             }
                             MessageRole.SYSTEM -> MaterialTheme.colorScheme.onSecondaryContainer
+                            MessageRole.TOOL -> MaterialTheme.colorScheme.onTertiaryContainer
                         }
 
                         // Render images if present
@@ -135,6 +147,15 @@ fun ChatBubble(
                             if (message.content.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
+                        }
+
+                        if (isTool) {
+                            Text(
+                                text = "Tool Result:",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = textColor.copy(alpha = 0.7f)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
                         }
 
                         if (isAssistant && !message.isError && message.content.isNotEmpty()) {
@@ -172,6 +193,7 @@ fun ChatBubble(
                                 MessageRole.USER -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 MessageRole.ASSISTANT -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 MessageRole.SYSTEM -> MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                MessageRole.TOOL -> MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
                             },
                             fontSize = 10.sp
                         )
@@ -488,6 +510,40 @@ private fun GeneratedImage(image: MessageImage) {
             color = MaterialTheme.colorScheme.onErrorContainer,
             fontSize = 12.sp
         )
+    }
+}
+
+@Composable
+private fun ToolCallsSection(toolCalls: List<ToolCall>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        toolCalls.forEach { toolCall ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Psychology,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f),
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "Using tool: ${toolCall.name}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f),
+                    fontSize = 11.sp
+                )
+            }
+        }
     }
 }
 

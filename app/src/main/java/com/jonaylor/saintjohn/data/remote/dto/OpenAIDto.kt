@@ -9,14 +9,72 @@ data class OpenAIRequest(
     @SerializedName("messages")
     val messages: List<OpenAIMessage>,
     @SerializedName("stream")
-    val stream: Boolean = false
+    val stream: Boolean = false,
+    @SerializedName("tools")
+    val tools: List<OpenAITool>? = null,
+    @SerializedName("tool_choice")
+    val toolChoice: Any? = null // "auto", "none", "required" or specific tool
 )
 
 data class OpenAIMessage(
     @SerializedName("role")
-    val role: String, // "user", "assistant", "system"
+    val role: String, // "user", "assistant", "system", "tool"
     @SerializedName("content")
-    val content: String
+    val content: String?,
+    @SerializedName("tool_calls")
+    val toolCalls: List<OpenAIToolCall>? = null,
+    @SerializedName("tool_call_id")
+    val toolCallId: String? = null // Required for tool messages
+)
+
+data class OpenAITool(
+    @SerializedName("type")
+    val type: String = "function",
+    @SerializedName("function")
+    val function: OpenAIFunction
+)
+
+data class OpenAIFunction(
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("description")
+    val description: String?,
+    @SerializedName("parameters")
+    val parameters: OpenAISchema
+)
+
+data class OpenAISchema(
+    @SerializedName("type")
+    val type: String = "object",
+    @SerializedName("properties")
+    val properties: Map<String, OpenAISchemaProperty>,
+    @SerializedName("required")
+    val required: List<String>? = null
+)
+
+data class OpenAISchemaProperty(
+    @SerializedName("type")
+    val type: String,
+    @SerializedName("description")
+    val description: String? = null,
+    @SerializedName("enum")
+    val enum: List<String>? = null
+)
+
+data class OpenAIToolCall(
+    @SerializedName("id")
+    val id: String,
+    @SerializedName("type")
+    val type: String = "function",
+    @SerializedName("function")
+    val function: OpenAIFunctionCall
+)
+
+data class OpenAIFunctionCall(
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("arguments")
+    val arguments: String
 )
 
 // Response models
@@ -64,7 +122,27 @@ data class OpenAIDelta(
     @SerializedName("content")
     val content: String?,
     @SerializedName("reasoning_content")
-    val reasoningContent: String? = null
+    val reasoningContent: String? = null,
+    @SerializedName("tool_calls")
+    val toolCalls: List<OpenAIToolCallChunk>? = null
+)
+
+data class OpenAIToolCallChunk(
+    @SerializedName("index")
+    val index: Int,
+    @SerializedName("id")
+    val id: String? = null,
+    @SerializedName("type")
+    val type: String? = null,
+    @SerializedName("function")
+    val function: OpenAIFunctionCallChunk? = null
+)
+
+data class OpenAIFunctionCallChunk(
+    @SerializedName("name")
+    val name: String? = null,
+    @SerializedName("arguments")
+    val arguments: String? = null
 )
 
 data class OpenAIChoice(

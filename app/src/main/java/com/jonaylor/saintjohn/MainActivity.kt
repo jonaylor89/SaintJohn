@@ -67,6 +67,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         registerPackageChangeReceiver()
 
+        android.util.Log.d("SaintJohn", "LAUNCHING AGENTIC VERSION 1.3")
+        android.widget.Toast.makeText(this, "Agentic Saint John v1.3", android.widget.Toast.LENGTH_LONG).show()
+
         setContent {
             val onboardingCompleted by preferencesManager.onboardingCompleted.collectAsState(initial = false)
 

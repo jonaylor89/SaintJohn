@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.jonaylor.saintjohn.domain.agent.SkillRegistry
+import com.jonaylor.saintjohn.domain.model.MessageRole
 
 data class ModelInfo(
     val name: String,
@@ -43,7 +45,8 @@ data class ChatUiState(
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val skillRegistry: SkillRegistry
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -146,7 +149,55 @@ class ChatViewModel @Inject constructor(
             )
 
             _uiState.value = _uiState.value.copy(isLoading = false)
+            
+            // Check for tool calls
+            checkForToolCalls(conversationId)
         }
+    }
+    
+    private suspend fun checkForToolCalls(conversationId: Long) {
+        val messages = chatRepository.getMessages(conversationId).first()
+        val lastMessage = messages.lastOrNull()
+        
+        if (lastMessage != null && 
+            lastMessage.role == MessageRole.ASSISTANT && 
+            !lastMessage.isError && 
+            lastMessage.toolCalls.isNotEmpty()
+        ) {
+            executeTools(conversationId, lastMessage)
+        }
+    }
+    
+    private suspend fun executeTools(conversationId: Long, message: Message) {
+        _uiState.value = _uiState.value.copy(isLoading = true)
+        
+        message.toolCalls.forEach { toolCall ->
+            val skill = skillRegistry.getSkill(toolCall.name)
+            val result = if (skill != null) {
+                try {
+                    skill.execute(toolCall.arguments)
+                } catch (e: Exception) {
+                    "Error executing skill: ${e.message}"
+                }
+            } else {
+                "Error: Skill '${toolCall.name}' not found."
+            }
+            
+            chatRepository.sendToolResult(conversationId, toolCall.id, result)
+        }
+        
+        // Continue conversation
+        chatRepository.sendMessageStreaming(
+            conversationId = conversationId,
+            content = null, // Continue without user input
+            provider = _uiState.value.selectedProvider,
+            onChunk = { } // No-op, UI updates from DB flow
+        )
+        
+        _uiState.value = _uiState.value.copy(isLoading = false)
+        
+        // Recursive check for multi-turn agentic loop
+        checkForToolCalls(conversationId)
     }
 
     fun cancelMessage() {

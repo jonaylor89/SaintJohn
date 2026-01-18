@@ -41,6 +41,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindChatRepository(impl: ChatRepositoryImpl): ChatRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAppLauncher(impl: com.jonaylor.saintjohn.data.repository.AppLauncherImpl): com.jonaylor.saintjohn.domain.repository.AppLauncher
 }
 
 @Module

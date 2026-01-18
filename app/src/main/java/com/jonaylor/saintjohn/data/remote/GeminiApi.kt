@@ -14,7 +14,7 @@ import retrofit2.http.Streaming
 
 interface GeminiApi {
 
-    @POST("v1beta/models/{model}:generateContent")
+    @POST("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent")
     suspend fun generateContent(
         @Path("model") model: String,
         @Header("x-goog-api-key") apiKey: String,
@@ -22,7 +22,7 @@ interface GeminiApi {
     ): GeminiResponse
 
     @Streaming
-    @POST("v1beta/models/{model}:streamGenerateContent?alt=sse")
+    @POST("https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse")
     suspend fun streamGenerateContent(
         @Path("model") model: String,
         @Header("x-goog-api-key") apiKey: String,
@@ -36,6 +36,6 @@ interface GeminiApi {
 
     companion object {
         const val BASE_URL = "https://generativelanguage.googleapis.com/"
-        const val DEFAULT_MODEL = "gemini-2.5-flash"
+        const val DEFAULT_MODEL = "gemini-1.5-flash"
     }
 }

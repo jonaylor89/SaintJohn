@@ -29,9 +29,10 @@ class MessageRoleTest {
     @Test
     fun `all roles should be present`() {
         val roles = MessageRole.entries
-        assertEquals(3, roles.size)
+        assertEquals(4, roles.size)
         assertTrue(roles.contains(MessageRole.USER))
         assertTrue(roles.contains(MessageRole.ASSISTANT))
         assertTrue(roles.contains(MessageRole.SYSTEM))
+        assertTrue(roles.contains(MessageRole.TOOL))
     }
 }

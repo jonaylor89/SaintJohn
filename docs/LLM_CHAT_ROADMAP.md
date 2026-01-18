@@ -70,20 +70,19 @@ A prioritized feature list for transforming the LLM chat page from a basic text-
 
 ## 🔴 Higher Effort, Very High Impact
 
-### 14. **Tool Use / Function Calling**
+### 14. **Tool Use / Function Calling** (COMPLETED)
 - **Description**: Enable LLM to use tools: calculator, unit converter, weather lookup, calendar, reminders, etc.
 - **Difficulty**: Hard (1-2 weeks)
-- **Coding Agent Estimate**: 20-30 hours
+- **Status**: ✅ Implemented (Weather, Calendar, Notes, App Launching, App Listing)
 - **Maintenance**: Medium-High — each tool needs maintenance, error handling
 - **User Value**: 🔥🔥🔥🔥 Extreme — transforms from chatbot to actual assistant
-- **Suggested tools**:
-  - **Weather lookup** (reuse existing WeatherRepository)
-  - **Calendar lookup** (reuse CalendarRepository)  
-  - **Create note** (reuse NoteRepository)
-  - **Set reminder** (new Android AlarmManager integration)
-  - **Open app** (leverage existing AppRepository)
-  - **Web search** (see #6)
-  - **Calculator/math**
+- **Implemented tools**:
+  - **Weather lookup** (using WeatherRepository)
+  - **Calendar lookup** (using CalendarRepository)  
+  - **Create note** (using NoteRepository)
+  - **Open app** (using AppLauncher)
+  - **List apps** (using AppRepository)
+
 
 ### 15. **Proactive Widgets / Quick Actions**
 - **Description**: LLM-powered suggestions on the home screen (e.g., "Traffic looks bad, leave early" or "You have a meeting in 30 min")

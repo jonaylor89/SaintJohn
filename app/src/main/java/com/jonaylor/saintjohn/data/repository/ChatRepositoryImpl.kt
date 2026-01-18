@@ -12,11 +12,23 @@ import com.jonaylor.saintjohn.data.remote.OpenAIApi
 import com.jonaylor.saintjohn.data.remote.dto.AnthropicMessage
 import com.jonaylor.saintjohn.data.remote.dto.AnthropicRequest
 import com.jonaylor.saintjohn.data.remote.dto.AnthropicStreamChunk
+import com.jonaylor.saintjohn.data.remote.dto.AnthropicTool
+import com.jonaylor.saintjohn.data.remote.dto.AnthropicSchema
+import com.jonaylor.saintjohn.data.remote.dto.AnthropicSchemaProperty
+import com.jonaylor.saintjohn.data.remote.dto.AnthropicContent
 import com.jonaylor.saintjohn.data.remote.dto.GeminiContent
+import com.jonaylor.saintjohn.data.remote.dto.OpenAITool
+import com.jonaylor.saintjohn.data.remote.dto.OpenAIFunction
+import com.jonaylor.saintjohn.data.remote.dto.OpenAISchema
+import com.jonaylor.saintjohn.data.remote.dto.OpenAISchemaProperty
+import com.jonaylor.saintjohn.data.remote.dto.OpenAIToolCall
+import com.jonaylor.saintjohn.data.remote.dto.OpenAIFunctionCall
 import com.jonaylor.saintjohn.data.remote.dto.GeminiGenerationConfig
 import com.jonaylor.saintjohn.data.remote.dto.GeminiPart
 import com.jonaylor.saintjohn.data.remote.dto.GeminiRequest
 import com.jonaylor.saintjohn.data.remote.dto.GeminiStreamChunk
+import com.jonaylor.saintjohn.data.remote.dto.GeminiFunctionCall
+import com.jonaylor.saintjohn.data.remote.dto.GeminiFunctionResponse
 import com.jonaylor.saintjohn.data.remote.dto.OpenAIMessage
 import com.jonaylor.saintjohn.data.remote.dto.OpenAIRequest
 import com.jonaylor.saintjohn.data.remote.dto.OpenAIStreamChunk
@@ -25,12 +37,21 @@ import com.jonaylor.saintjohn.domain.model.Message
 import com.jonaylor.saintjohn.domain.model.MessageImage
 import com.jonaylor.saintjohn.domain.model.MessageRole
 import com.google.gson.reflect.TypeToken
+import com.jonaylor.saintjohn.domain.model.ToolResult
 import com.jonaylor.saintjohn.domain.repository.ChatRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+
+import com.jonaylor.saintjohn.domain.agent.SkillRegistry
+import com.jonaylor.saintjohn.domain.agent.AgentSkill
+import com.jonaylor.saintjohn.data.remote.dto.GeminiTool
+import com.jonaylor.saintjohn.data.remote.dto.GeminiFunctionDeclaration
+import com.jonaylor.saintjohn.data.remote.dto.GeminiSchema
+import com.jonaylor.saintjohn.data.remote.dto.GeminiSchemaProperty
+import com.jonaylor.saintjohn.domain.model.ToolCall
 
 @Singleton
 class ChatRepositoryImpl @Inject constructor(
@@ -39,7 +60,8 @@ class ChatRepositoryImpl @Inject constructor(
     private val preferencesManager: PreferencesManager,
     private val openAIApi: OpenAIApi,
     private val geminiApi: GeminiApi,
-    private val anthropicApi: AnthropicApi
+    private val anthropicApi: AnthropicApi,
+    private val skillRegistry: SkillRegistry
 ) : ChatRepository {
 
     private var currentConversationId: Long? = null
@@ -73,18 +95,20 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun sendMessage(
         conversationId: Long,
-        content: String,
+        content: String?,
         provider: LLMProvider
     ): Result<Message> {
         return try {
             // Save user message
-            val userMessage = MessageEntity(
-                conversationId = conversationId,
-                content = content,
-                role = MessageRole.USER.name,
-                timestamp = System.currentTimeMillis()
-            )
-            messageDao.insertMessage(userMessage)
+            if (content != null) {
+                val userMessage = MessageEntity(
+                    conversationId = conversationId,
+                    content = content,
+                    role = MessageRole.USER.name,
+                    timestamp = System.currentTimeMillis()
+                )
+                messageDao.insertMessage(userMessage)
+            }
 
             // Get API key
             val apiKey = when (provider) {
@@ -212,10 +236,19 @@ class ChatRepositoryImpl @Inject constructor(
 
             Result.success(assistantMessage.copy(id = id).toDomainModel())
         } catch (e: Exception) {
+            val is404 = (e is retrofit2.HttpException && e.code() == 404) || 
+                        e.message?.contains("404") == true
+            
+            val errorMessageText = if (is404) {
+                "Error: 404 Not Found. This usually means the model ID is invalid or not available for your account. Model: ${getSelectedModel(provider)}"
+            } else {
+                "Error: ${e.message ?: "Unknown error occurred"}"
+            }
+            
             // Save error message for user to see
             val errorMessage = MessageEntity(
                 conversationId = conversationId,
-                content = "Error: ${e.message ?: "Unknown error occurred"}",
+                content = errorMessageText,
                 role = MessageRole.ASSISTANT.name,
                 timestamp = System.currentTimeMillis(),
                 isError = true
@@ -228,29 +261,31 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun sendMessageStreaming(
         conversationId: Long,
-        content: String,
+        content: String?,
         provider: LLMProvider,
         onChunk: (String) -> Unit
     ): Result<Message> {
         return try {
             // Save user message
-            val userMessage = MessageEntity(
-                conversationId = conversationId,
-                content = content,
-                role = MessageRole.USER.name,
-                timestamp = System.currentTimeMillis()
-            )
-            messageDao.insertMessage(userMessage)
+            if (content != null) {
+                val userMessage = MessageEntity(
+                    conversationId = conversationId,
+                    content = content,
+                    role = MessageRole.USER.name,
+                    timestamp = System.currentTimeMillis()
+                )
+                messageDao.insertMessage(userMessage)
 
-            // Update conversation title if this is the first user message
-            val messageCount = messageDao.getMessageCount(conversationId)
-            if (messageCount == 1) { // Only the user message we just inserted
-                val preview = if (content.length > 20) {
-                    content.take(20).trim() + "..."
-                } else {
-                    content.trim()
+                // Update conversation title if this is the first user message
+                val messageCount = messageDao.getMessageCount(conversationId)
+                if (messageCount == 1) { // Only the user message we just inserted
+                    val preview = if (content.length > 20) {
+                        content.take(20).trim() + "..."
+                    } else {
+                        content.trim()
+                    }
+                    conversationDao.updateConversationTitle(conversationId, preview)
                 }
-                conversationDao.updateConversationTitle(conversationId, preview)
             }
 
             // Get API key
@@ -297,9 +332,35 @@ class ChatRepositoryImpl @Inject constructor(
                             add(OpenAIMessage(role = "system", content = systemPrompt))
                         }
                         addAll(history.map { msg ->
+                            val role = if (msg.role == MessageRole.TOOL.name) "tool" else msg.role.lowercase()
+                            
+                            val toolCalls = if (msg.toolCallsJson != null) {
+                                try {
+                                    val type = object : TypeToken<List<ToolCall>>() {}.type
+                                    val tcs = Gson().fromJson<List<ToolCall>>(msg.toolCallsJson, type)
+                                    tcs.map { tc ->
+                                        OpenAIToolCall(
+                                            id = tc.id,
+                                            function = OpenAIFunctionCall(
+                                                name = tc.name,
+                                                arguments = Gson().toJson(tc.arguments)
+                                            )
+                                        )
+                                    }
+                                } catch (e: Exception) { null }
+                            } else null
+                            
+                            val toolCallId = if (msg.role == MessageRole.TOOL.name && msg.toolResultJson != null) {
+                                try {
+                                    Gson().fromJson(msg.toolResultJson, ToolResult::class.java).toolCallId
+                                } catch (e: Exception) { null }
+                            } else null
+
                             OpenAIMessage(
-                                role = msg.role.lowercase(),
-                                content = msg.content
+                                role = role,
+                                content = msg.content,
+                                toolCalls = toolCalls,
+                                toolCallId = toolCallId
                             )
                         })
                     }
@@ -307,11 +368,18 @@ class ChatRepositoryImpl @Inject constructor(
                     // Get selected model for this provider
                     val selectedModel = getSelectedModel(provider)
 
+                    // Prepare tools
+                    val skills = skillRegistry.getAllSkills()
+                    val openAITools = if (skills.isNotEmpty()) {
+                        skills.map { it.toOpenAITool() }
+                    } else null
+
                     // Make streaming API call
                     val request = OpenAIRequest(
                         model = selectedModel,
                         messages = openAIMessages,
-                        stream = true
+                        stream = true,
+                        tools = openAITools
                     )
 
                     val responseBody = openAIApi.createChatCompletionStream(
@@ -321,6 +389,11 @@ class ChatRepositoryImpl @Inject constructor(
 
                     val fullContent = StringBuilder()
                     val fullThinking = StringBuilder()
+                    
+                    // Track tool calls being built from stream
+                    // Map of index -> ToolCallBuilder
+                    val toolCallBuilders = mutableMapOf<Int, MutableToolCallBuilder>()
+                    
                     val gson = Gson()
 
                     // Process stream line by line
@@ -359,19 +432,75 @@ class ChatRepositoryImpl @Inject constructor(
                                         )
                                         onChunk(content)
                                     }
+                                    
+                                    // Handle tool calls
+                                    delta?.toolCalls?.forEach { toolCallChunk ->
+                                        val index = toolCallChunk.index
+                                        val builder = toolCallBuilders.getOrPut(index) { MutableToolCallBuilder() }
+                                        
+                                        toolCallChunk.id?.let { builder.id = it }
+                                        toolCallChunk.function?.name?.let { builder.name = it }
+                                        toolCallChunk.function?.arguments?.let { builder.argumentsBuilder.append(it) }
+                                    }
+                                    
+                                    // If we have accumulated tool calls, update the DB
+                                    if (toolCallBuilders.isNotEmpty()) {
+                                        val currentToolCalls = toolCallBuilders.values
+                                            .filter { it.id != null && it.name != null }
+                                            .map { builder ->
+                                                // Try to parse partial arguments JSON
+                                                val argsMap = try {
+                                                    val type = object : TypeToken<Map<String, Any?>>() {}.type
+                                                    gson.fromJson<Map<String, Any?>>(builder.argumentsBuilder.toString(), type) ?: emptyMap()
+                                                } catch (e: Exception) { emptyMap() }
+                                                
+                                                ToolCall(
+                                                    id = builder.id!!,
+                                                    name = builder.name!!,
+                                                    arguments = argsMap
+                                                )
+                                            }
+                                            
+                                        if (currentToolCalls.isNotEmpty()) {
+                                            messageDao.updateMessage(
+                                                assistantMessage.copy(
+                                                    id = messageId,
+                                                    content = fullContent.toString(),
+                                                    thinking = fullThinking.toString().takeIf { it.isNotEmpty() },
+                                                    toolCallsJson = gson.toJson(currentToolCalls)
+                                                )
+                                            )
+                                        }
+                                    }
                                 } catch (e: Exception) {
                                     // Skip malformed chunks
                                 }
                             }
                     }
 
-                    // Store final thinking content
-                    if (fullThinking.isNotEmpty()) {
+                    // Store final thinking content and tool calls
+                    val finalToolCalls = toolCallBuilders.values
+                        .filter { it.id != null && it.name != null }
+                        .map { builder ->
+                            val argsMap = try {
+                                val type = object : TypeToken<Map<String, Any?>>() {}.type
+                                gson.fromJson<Map<String, Any?>>(builder.argumentsBuilder.toString(), type) ?: emptyMap()
+                            } catch (e: Exception) { emptyMap() }
+                            
+                            ToolCall(
+                                id = builder.id!!,
+                                name = builder.name!!,
+                                arguments = argsMap
+                            )
+                        }
+
+                    if (fullThinking.isNotEmpty() || finalToolCalls.isNotEmpty()) {
                         messageDao.updateMessage(
                             assistantMessage.copy(
                                 id = messageId,
                                 content = fullContent.toString(),
-                                thinking = fullThinking.toString()
+                                thinking = fullThinking.toString(),
+                                toolCallsJson = if (finalToolCalls.isNotEmpty()) Gson().toJson(finalToolCalls) else null
                             )
                         )
                     }
@@ -386,21 +515,48 @@ class ChatRepositoryImpl @Inject constructor(
 
                     // Convert to Anthropic format
                     val anthropicMessages = history.map { msg ->
+                        val content: Any = when {
+                            msg.toolCallsJson != null -> {
+                                val type = object : TypeToken<List<ToolCall>>() {}.type
+                                val toolCalls = Gson().fromJson<List<ToolCall>>(msg.toolCallsJson, type)
+                                buildList {
+                                    if (msg.content.isNotEmpty()) {
+                                        add(AnthropicContent(type = "text", text = msg.content))
+                                    }
+                                    toolCalls.forEach { tc ->
+                                        add(AnthropicContent(type = "tool_use", id = tc.id, name = tc.name, input = tc.arguments))
+                                    }
+                                }
+                            }
+                            msg.toolResultJson != null -> {
+                                val toolResult = Gson().fromJson(msg.toolResultJson, ToolResult::class.java)
+                                listOf(AnthropicContent(type = "tool_result", toolUseId = toolResult.toolCallId, content = toolResult.result))
+                            }
+                            else -> msg.content
+                        }
+                        
                         AnthropicMessage(
-                            role = msg.role.lowercase(),
-                            content = msg.content
+                            role = if (msg.role == MessageRole.TOOL.name) "user" else msg.role.lowercase(),
+                            content = content
                         )
                     }
 
                     // Get selected model for this provider
                     val selectedModel = getSelectedModel(provider)
 
+                    // Prepare tools
+                    val skills = skillRegistry.getAllSkills()
+                    val anthropicTools = if (skills.isNotEmpty()) {
+                        skills.map { it.toAnthropicTool() }
+                    } else null
+
                     // Make streaming API call with system prompt
                     val request = AnthropicRequest(
                         model = selectedModel,
                         messages = anthropicMessages,
                         stream = true,
-                        system = systemPrompt.takeIf { it.isNotBlank() }
+                        system = systemPrompt.takeIf { it.isNotBlank() },
+                        tools = anthropicTools
                     )
 
                     val responseBody = anthropicApi.createMessageStream(
@@ -410,6 +566,11 @@ class ChatRepositoryImpl @Inject constructor(
 
                     val fullContent = StringBuilder()
                     val fullThinking = StringBuilder()
+                    val collectedToolCalls = mutableListOf<ToolCall>()
+                    var currentToolCallId: String? = null
+                    var currentToolCallName: String? = null
+                    val currentToolCallInput = StringBuilder()
+                    
                     val gson = Gson()
                     var currentBlockType: String? = null
 
@@ -429,41 +590,76 @@ class ChatRepositoryImpl @Inject constructor(
                                         // Handle different chunk types
                                         when (chunk.type) {
                                             "content_block_start" -> {
-                                                // Track the type of the current block (thinking vs text)
+                                                // Track the type of the current block (thinking vs text vs tool_use)
                                                 currentBlockType = chunk.contentBlock?.type
+                                                if (currentBlockType == "tool_use") {
+                                                    currentToolCallId = chunk.contentBlock?.id
+                                                    currentToolCallName = chunk.contentBlock?.name
+                                                    currentToolCallInput.setLength(0)
+                                                }
                                             }
                                             "content_block_delta" -> {
                                                 val deltaType = chunk.delta?.type
-                                                val text = chunk.delta?.text
                                                 
-                                                // Handle thinking delta (extended thinking)
-                                                if (deltaType == "thinking_delta" || currentBlockType == "thinking") {
-                                                    text?.let { thinking ->
-                                                        fullThinking.append(thinking)
-                                                        messageDao.updateMessage(
-                                                            assistantMessage.copy(
-                                                                id = messageId,
-                                                                content = fullContent.toString(),
-                                                                thinking = fullThinking.toString()
+                                                when {
+                                                    deltaType == "thinking_delta" || currentBlockType == "thinking" -> {
+                                                        chunk.delta?.thinking?.let { thinking ->
+                                                            fullThinking.append(thinking)
+                                                            messageDao.updateMessage(
+                                                                assistantMessage.copy(
+                                                                    id = messageId,
+                                                                    content = fullContent.toString(),
+                                                                    thinking = fullThinking.toString()
+                                                                )
                                                             )
-                                                        )
+                                                        }
                                                     }
-                                                } else {
-                                                    // Handle regular text delta
-                                                    text?.let { content ->
-                                                        fullContent.append(content)
-                                                        messageDao.updateMessage(
-                                                            assistantMessage.copy(
-                                                                id = messageId,
-                                                                content = fullContent.toString(),
-                                                                thinking = fullThinking.toString().takeIf { it.isNotEmpty() }
+                                                    deltaType == "text_delta" || currentBlockType == "text" -> {
+                                                        chunk.delta?.text?.let { content ->
+                                                            fullContent.append(content)
+                                                            messageDao.updateMessage(
+                                                                assistantMessage.copy(
+                                                                    id = messageId,
+                                                                    content = fullContent.toString(),
+                                                                    thinking = fullThinking.toString().takeIf { it.isNotEmpty() }
+                                                                )
                                                             )
-                                                        )
-                                                        onChunk(content)
+                                                            onChunk(content)
+                                                        }
+                                                    }
+                                                    deltaType == "input_json_delta" -> {
+                                                        chunk.delta?.partialJson?.let { partial ->
+                                                            currentToolCallInput.append(partial)
+                                                        }
                                                     }
                                                 }
                                             }
                                             "content_block_stop" -> {
+                                                if (currentBlockType == "tool_use" && currentToolCallId != null && currentToolCallName != null) {
+                                                    try {
+                                                        val inputMapType = object : TypeToken<Map<String, Any?>>() {}.type
+                                                        val arguments = gson.fromJson<Map<String, Any?>>(currentToolCallInput.toString(), inputMapType)
+                                                        collectedToolCalls.add(
+                                                            ToolCall(
+                                                                id = currentToolCallId!!,
+                                                                name = currentToolCallName!!,
+                                                                arguments = arguments
+                                                            )
+                                                        )
+                                                        
+                                                        // Update database with collected tool calls
+                                                        messageDao.updateMessage(
+                                                            assistantMessage.copy(
+                                                                id = messageId,
+                                                                content = fullContent.toString(),
+                                                                thinking = fullThinking.toString().takeIf { it.isNotEmpty() },
+                                                                toolCallsJson = Gson().toJson(collectedToolCalls)
+                                                            )
+                                                        )
+                                                    } catch (e: Exception) {
+                                                        android.util.Log.e("AnthropicStream", "Error parsing tool input", e)
+                                                    }
+                                                }
                                                 currentBlockType = null
                                             }
                                             "message_stop" -> {
@@ -479,12 +675,13 @@ class ChatRepositoryImpl @Inject constructor(
                     }
 
                     // Store final thinking content
-                    if (fullThinking.isNotEmpty()) {
+                    if (fullThinking.isNotEmpty() || collectedToolCalls.isNotEmpty()) {
                         messageDao.updateMessage(
                             assistantMessage.copy(
                                 id = messageId,
                                 content = fullContent.toString(),
-                                thinking = fullThinking.toString()
+                                thinking = fullThinking.toString().takeIf { it.isNotEmpty() },
+                                toolCallsJson = if (collectedToolCalls.isNotEmpty()) Gson().toJson(collectedToolCalls) else null
                             )
                         )
                     }
@@ -499,10 +696,37 @@ class ChatRepositoryImpl @Inject constructor(
 
                     // Convert to Gemini format
                     val geminiContents = history.map { msg ->
-                        GeminiContent(
-                            parts = listOf(GeminiPart(text = msg.content)),
-                            role = if (msg.role == "USER") "user" else "model"
-                        )
+                        val parts = mutableListOf<GeminiPart>()
+                        
+                        // Content
+                        if (msg.content.isNotEmpty()) {
+                            parts.add(GeminiPart(text = msg.content))
+                        }
+                        
+                        // Tool Calls
+                        if (msg.toolCallsJson != null) {
+                            try {
+                                val type = object : TypeToken<List<ToolCall>>() {}.type
+                                val toolCalls = Gson().fromJson<List<ToolCall>>(msg.toolCallsJson, type)
+                                toolCalls.forEach { tc ->
+                                    parts.add(GeminiPart(functionCall = GeminiFunctionCall(tc.name, tc.arguments)))
+                                }
+                            } catch (e: Exception) { }
+                        }
+                        
+                        // Tool Results
+                        if (msg.toolResultJson != null) {
+                            try {
+                                val toolResult = Gson().fromJson(msg.toolResultJson, ToolResult::class.java)
+                                val responseMap = mapOf("result" to toolResult.result) 
+                                parts.add(GeminiPart(functionResponse = GeminiFunctionResponse(toolResult.toolCallId, responseMap)))
+                            } catch (e: Exception) { }
+                        }
+
+                        // Determine role
+                        val role = if (msg.role == MessageRole.USER.name || msg.role == MessageRole.TOOL.name) "user" else "model"
+                        
+                        GeminiContent(parts = parts, role = role)
                     }
 
                     // Get selected model for this provider
@@ -521,10 +745,17 @@ class ChatRepositoryImpl @Inject constructor(
                         GeminiGenerationConfig(responseModalities = listOf("TEXT", "IMAGE"))
                     } else null
 
+                    // Prepare tools
+                    val skills = skillRegistry.getAllSkills()
+                    val geminiTools = if (skills.isNotEmpty()) {
+                        listOf(GeminiTool(functionDeclarations = skills.map { it.toGeminiFunction() }))
+                    } else null
+
                     val request = GeminiRequest(
                         contents = geminiContents,
                         systemInstruction = systemInstruction,
-                        generationConfig = generationConfig
+                        generationConfig = generationConfig,
+                        tools = geminiTools
                     )
 
                     val responseBody = geminiApi.streamGenerateContent(
@@ -535,6 +766,7 @@ class ChatRepositoryImpl @Inject constructor(
 
                     val fullContent = StringBuilder()
                     val collectedImages = mutableListOf<MessageImage>()
+                    val collectedToolCalls = mutableListOf<ToolCall>()
                     val gson = Gson()
 
                     // Process stream line by line
@@ -569,6 +801,17 @@ class ChatRepositoryImpl @Inject constructor(
                                                     android.util.Log.d("GeminiStream", "Received image: ${inlineData.mimeType}")
                                                 }
                                             }
+
+                                            // Handle function calls
+                                            part.functionCall?.let { fc ->
+                                                collectedToolCalls.add(
+                                                    ToolCall(
+                                                        id = "call_${System.currentTimeMillis()}_${collectedToolCalls.size}",
+                                                        name = fc.name,
+                                                        arguments = fc.args
+                                                    )
+                                                )
+                                            }
                                         }
 
                                         // Update the message in database in real-time
@@ -576,7 +819,8 @@ class ChatRepositoryImpl @Inject constructor(
                                             assistantMessage.copy(
                                                 id = messageId,
                                                 content = fullContent.toString(),
-                                                imagesJson = collectedImages.toJson()
+                                                imagesJson = collectedImages.toJson(),
+                                                toolCallsJson = if (collectedToolCalls.isNotEmpty()) Gson().toJson(collectedToolCalls) else null
                                             )
                                         )
                                     } catch (e: Exception) {
@@ -594,10 +838,19 @@ class ChatRepositoryImpl @Inject constructor(
             // Just return the final version
             Result.success(assistantMessage.copy(id = messageId, content = assistantContent).toDomainModel())
         } catch (e: Exception) {
+            val is404 = (e is retrofit2.HttpException && e.code() == 404) || 
+                        e.message?.contains("404") == true
+
+            val errorMessageText = if (is404) {
+                "Error: 404 Not Found. This usually means the model ID is invalid or not available for your account. Model: ${getSelectedModel(provider)}"
+            } else {
+                "Error: ${e.message ?: "Unknown error occurred"}"
+            }
+
             // Save error message for user to see
             val errorMessage = MessageEntity(
                 conversationId = conversationId,
-                content = "Error: ${e.message ?: "Unknown error occurred"}",
+                content = errorMessageText,
                 role = MessageRole.ASSISTANT.name,
                 timestamp = System.currentTimeMillis(),
                 isError = true
@@ -757,14 +1010,14 @@ class ChatRepositoryImpl @Inject constructor(
                 "o1-mini"
             )
             LLMProvider.ANTHROPIC -> listOf(
-                "claude-sonnet-4-5-20250929",
-                "claude-haiku-4-5-20251001",
-                "claude-opus-4-1-20250805"
+                "claude-3-5-sonnet-20241022",
+                "claude-3-5-haiku-20241022",
+                "claude-3-opus-20240229"
             )
             LLMProvider.GOOGLE -> listOf(
-                "gemini-2.5-pro",
-                "gemini-2.5-flash",
-                "gemini-2.0-flash"
+                "gemini-1.5-pro",
+                "gemini-1.5-flash",
+                "gemini-1.0-pro"
             )
         }
     }
@@ -785,6 +1038,22 @@ class ChatRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun sendToolResult(
+        conversationId: Long,
+        toolCallId: String,
+        result: String
+    ): Result<Message> {
+        val toolMessage = MessageEntity(
+            conversationId = conversationId,
+            content = result,
+            role = MessageRole.TOOL.name,
+            timestamp = System.currentTimeMillis(),
+            toolResultJson = Gson().toJson(ToolResult(toolCallId, result))
+        )
+        val id = messageDao.insertMessage(toolMessage)
+        return Result.success(toolMessage.copy(id = id).toDomainModel())
+    }
+
     private fun MessageEntity.toDomainModel(): Message {
         val images = imagesJson?.let { json ->
             try {
@@ -795,20 +1064,110 @@ class ChatRepositoryImpl @Inject constructor(
             }
         } ?: emptyList()
 
+        val toolCalls = toolCallsJson?.let { json ->
+            try {
+                val type = object : TypeToken<List<ToolCall>>() {}.type
+                Gson().fromJson<List<ToolCall>>(json, type)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } ?: emptyList()
+
+        val toolResult = toolResultJson?.let { json ->
+            try {
+                Gson().fromJson(json, ToolResult::class.java)
+            } catch (e: Exception) {
+                null
+            }
+        }
+
         return Message(
             id = id,
             conversationId = conversationId,
             content = content,
-            role = MessageRole.valueOf(role),
+            role = try { MessageRole.valueOf(role) } catch(e: Exception) { MessageRole.USER },
             timestamp = timestamp,
             isError = isError,
             thinking = thinking,
             thinkingSummary = thinkingSummary,
-            images = images
+            images = images,
+            toolCalls = toolCalls,
+            toolResult = toolResult
         )
     }
 
     private fun List<MessageImage>.toJson(): String? {
         return if (isEmpty()) null else Gson().toJson(this)
     }
+
+    private fun AgentSkill.toGeminiFunction(): GeminiFunctionDeclaration {
+        val properties = params.associate { param ->
+            param.name to GeminiSchemaProperty(
+                type = param.type.uppercase(),
+                description = param.description,
+                enum = param.enumValues
+            )
+        }
+        
+        val required = params.filter { it.required }.map { it.name }
+
+        return GeminiFunctionDeclaration(
+            name = name,
+            description = description,
+            parameters = GeminiSchema(
+                properties = if (properties.isNotEmpty()) properties else null,
+                required = if (required.isNotEmpty()) required else null
+            )
+        )
+    }
+
+    private fun AgentSkill.toAnthropicTool(): AnthropicTool {
+        val properties = params.associate { param ->
+            param.name to AnthropicSchemaProperty(
+                type = param.type.lowercase(),
+                description = param.description,
+                enum = param.enumValues
+            )
+        }
+        
+        val required = params.filter { it.required }.map { it.name }
+
+        return AnthropicTool(
+            name = name,
+            description = description,
+            inputSchema = AnthropicSchema(
+                properties = properties,
+                required = if (required.isNotEmpty()) required else null
+            )
+        )
+    }
+
+    private fun AgentSkill.toOpenAITool(): OpenAITool {
+        val properties = params.associate { param ->
+            param.name to OpenAISchemaProperty(
+                type = param.type.lowercase(),
+                description = param.description,
+                enum = param.enumValues
+            )
+        }
+        
+        val required = params.filter { it.required }.map { it.name }
+
+        return OpenAITool(
+            function = OpenAIFunction(
+                name = name,
+                description = description,
+                parameters = OpenAISchema(
+                    properties = properties,
+                    required = if (required.isNotEmpty()) required else null
+                )
+            )
+        )
+    }
+}
+
+private class MutableToolCallBuilder {
+    var id: String? = null
+    var name: String? = null
+    val argumentsBuilder = StringBuilder()
 }

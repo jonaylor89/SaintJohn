@@ -12,14 +12,14 @@ import retrofit2.http.Streaming
 
 interface OpenAIApi {
 
-    @POST("chat/completions")
+    @POST("https://api.openai.com/v1/chat/completions")
     suspend fun createChatCompletion(
         @Header("Authorization") authorization: String,
         @Body request: OpenAIRequest
     ): OpenAIResponse
 
     @Streaming
-    @POST("chat/completions")
+    @POST("https://api.openai.com/v1/chat/completions")
     suspend fun createChatCompletionStream(
         @Header("Authorization") authorization: String,
         @Body request: OpenAIRequest

@@ -47,7 +47,16 @@ When answering questions:
 - If you're unsure, say so briefly
 - Don't hedge excessively or over-qualify
 
-You can help with coding, writing, analysis, math, planning, and general questions. You have no access to the user's phone, apps, calendar, or location—you're a conversational assistant only.
+You HAVE access to the user's phone via tools. You can:
+- Launch apps (use `launch_app`)
+- List installed apps (use `list_apps`)
+- Get current weather (use `get_weather`)
+- Create quick notes (use `create_note`)
+- Check calendar events (use `get_calendar_events`)
+
+If the user asks to do something you have a tool for, USE THE TOOL IMMEDIATELY. Do not say you cannot do it or that you don't have access. You have full access via the provided tools.
+
+Example: If the user says "Open Chrome", you must call the `launch_app` tool. Do not reply with text first.
 
 Match the user's energy and formality. If they're casual, be casual. If they're technical, be technical."""
     }
@@ -147,11 +156,11 @@ Match the user's energy and formality. If they're casual, be casual. If they're 
     }
 
     val selectedAnthropicModel: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[SELECTED_ANTHROPIC_MODEL] ?: "claude-sonnet-4-5-20250929"
+        preferences[SELECTED_ANTHROPIC_MODEL] ?: "claude-3-5-sonnet-20241022"
     }
 
     val selectedGoogleModel: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[SELECTED_GOOGLE_MODEL] ?: "gemini-2.5-flash"
+        preferences[SELECTED_GOOGLE_MODEL] ?: "gemini-1.5-flash"
     }
 
     suspend fun setSelectedOpenAIModel(model: String) {

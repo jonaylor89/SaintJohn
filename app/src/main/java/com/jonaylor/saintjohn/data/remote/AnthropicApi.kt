@@ -12,7 +12,7 @@ import retrofit2.http.Streaming
 
 interface AnthropicApi {
 
-    @POST("v1/messages")
+    @POST("https://api.anthropic.com/v1/messages")
     suspend fun createMessage(
         @Header("x-api-key") apiKey: String,
         @Header("anthropic-version") version: String = "2023-06-01",
@@ -20,7 +20,7 @@ interface AnthropicApi {
     ): AnthropicResponse
 
     @Streaming
-    @POST("v1/messages")
+    @POST("https://api.anthropic.com/v1/messages")
     suspend fun createMessageStream(
         @Header("x-api-key") apiKey: String,
         @Header("anthropic-version") version: String = "2023-06-01",
@@ -35,6 +35,6 @@ interface AnthropicApi {
 
     companion object {
         const val BASE_URL = "https://api.anthropic.com/"
-        const val DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
+        const val DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
     }
 }
