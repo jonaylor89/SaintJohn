@@ -10,20 +10,6 @@ A prioritized feature list for transforming the LLM chat page from a basic text-
 
 ## 🟡 Medium Effort, High Impact
 
-### 6. **Web Search Integration**
-- **Description**: Toggle or automatic web search using Brave Search, Tavily, or Perplexity API. LLM summarizes results.
-- **Difficulty**: Medium (3-5 days)
-- **Coding Agent Estimate**: 8-12 hours
-- **Maintenance**: Medium — search APIs may have rate limits, quota management
-- **User Value**: 🔥🔥🔥 Very High — answers about current events, documentation lookups, real-time data
-
-### 7. **Image Generation (DALL-E / Imagen / Flux)**
-- **Description**: Detect image requests and generate images inline in chat
-- **Difficulty**: Medium (3-4 days)
-- **Coding Agent Estimate**: 10-15 hours
-- **Maintenance**: Medium — API costs, model updates
-- **User Value**: 🔥🔥🔥 Very High — creative use cases, quick mockups, fun
-
 ### 8. **Image Input (Vision)**
 - **Description**: Attach photos from camera/gallery to send to vision-capable models (GPT-4o, Claude, Gemini)
 - **Difficulty**: Medium (3-4 days)
@@ -59,30 +45,9 @@ A prioritized feature list for transforming the LLM chat page from a basic text-
 - **Maintenance**: None
 - **User Value**: 🔥🔥 Medium — switch to a smarter model for complex follow-ups
 
-### 13. **Updated Model List (Dynamic Fetch)**
-- **Description**: Fetch available models from API instead of hardcoded list
-- **Difficulty**: Easy-Medium (1-2 days)
-- **Coding Agent Estimate**: 4-6 hours
-- **Maintenance**: Low — OpenAI has a /models endpoint, others need periodic updates
-- **User Value**: 🔥 Medium — always have access to latest models
-
 ---
 
 ## 🔴 Higher Effort, Very High Impact
-
-### 14. **Tool Use / Function Calling** (COMPLETED)
-- **Description**: Enable LLM to use tools: calculator, unit converter, weather lookup, calendar, reminders, etc.
-- **Difficulty**: Hard (1-2 weeks)
-- **Status**: ✅ Implemented (Weather, Calendar, Notes, App Launching, App Listing)
-- **Maintenance**: Medium-High — each tool needs maintenance, error handling
-- **User Value**: 🔥🔥🔥🔥 Extreme — transforms from chatbot to actual assistant
-- **Implemented tools**:
-  - **Weather lookup** (using WeatherRepository)
-  - **Calendar lookup** (using CalendarRepository)  
-  - **Create note** (using NoteRepository)
-  - **Open app** (using AppLauncher)
-  - **List apps** (using AppRepository)
-
 
 ### 15. **Proactive Widgets / Quick Actions**
 - **Description**: LLM-powered suggestions on the home screen (e.g., "Traffic looks bad, leave early" or "You have a meeting in 30 min")
@@ -97,13 +62,6 @@ A prioritized feature list for transforming the LLM chat page from a basic text-
 - **Coding Agent Estimate**: 40-60 hours
 - **Maintenance**: High — complex state management, error recovery
 - **User Value**: 🔥🔥🔥🔥🔥 Maximum — true AI agent on your phone
-
-### 17. **Streaming Thinking/Reasoning Display**
-- **Description**: For reasoning models (o1, o3, Claude with extended thinking), show the thinking process
-- **Difficulty**: Medium-Hard (3-5 days)
-- **Coding Agent Estimate**: 12-18 hours
-- **Maintenance**: Medium — API format differences between providers
-- **User Value**: 🔥🔥 Medium — transparency into AI reasoning, educational
 
 ### 18. **Context Compression / Long Conversation Handling**
 - **Description**: Summarize older messages to fit more context, handle 100+ message conversations

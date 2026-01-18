@@ -1,0 +1,106 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+    title="Privacy Policy - Saint John"
+    description="Privacy Policy for Saint John Android Launcher"
+>
+    <!-- Privacy Policy Content -->
+    <section class="privacy-policy">
+        <div class="container">
+            <h1>Privacy Policy</h1>
+            <p class="last-updated">Last updated: October 24, 2025</p>
+
+            <div class="policy-content">
+                <h2>Introduction</h2>
+                <p>Saint John ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we handle information when you use the Saint John Android launcher application.</p>
+
+                <h2>Information We Collect</h2>
+                <p>Saint John is designed with privacy in mind. We collect minimal information necessary to provide the app's functionality:</p>
+
+                <h3>Information Stored Locally on Your Device</h3>
+                <ul>
+                    <li><strong>API Keys:</strong> If you choose to use AI conversation features, your API keys for OpenAI, Anthropic, or Google are stored locally on your device using Android's encrypted DataStore. These keys never leave your device.</li>
+                    <li><strong>Conversation History:</strong> All chat conversations with AI models are stored locally on your device. We do not have access to your conversations.</li>
+                    <li><strong>App Preferences:</strong> Theme settings, launcher preferences, and onboarding status are stored locally on your device.</li>
+                    <li><strong>Calendar Data:</strong> If you grant calendar permissions, we access your calendar events to display them in the widget. This data is read-only and never transmitted anywhere.</li>
+                    <li><strong>Location Data:</strong> If you grant location permissions, we use your location to fetch weather information from OpenWeatherMap API. Your location is only used for weather queries and is not stored or shared.</li>
+                    <li><strong>Usage Statistics:</strong> If you grant usage stats permission, we access app usage data to display app insights. This data remains on your device and is never transmitted.</li>
+                </ul>
+
+                <h3>Information We Do NOT Collect</h3>
+                <ul>
+                    <li>We do not collect, store, or transmit any personal information to our servers</li>
+                    <li>We do not use analytics or tracking services</li>
+                    <li>We do not sell or share your data with third parties</li>
+                    <li>We do not have access to your conversations, API keys, or any other data stored locally</li>
+                </ul>
+
+                <h2>Third-Party Services</h2>
+                <p>Saint John integrates with third-party services that you may choose to use:</p>
+
+                <h3>AI Model Providers</h3>
+                <p>When you use the AI conversation feature, your messages are sent directly from your device to the AI provider you've selected (OpenAI, Anthropic, or Google). These communications are subject to the respective provider's privacy policy:</p>
+                <ul>
+                    <li><strong>OpenAI:</strong> <a href="https://openai.com/policies/privacy-policy" target="_blank">OpenAI Privacy Policy</a></li>
+                    <li><strong>Anthropic:</strong> <a href="https://www.anthropic.com/privacy" target="_blank">Anthropic Privacy Policy</a></li>
+                    <li><strong>Google:</strong> <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a></li>
+                </ul>
+                <p>We do not have access to or control over these third-party services. Your API keys are used to communicate directly with these providers from your device.</p>
+
+                <h3>Weather Service</h3>
+                <p>Weather information is provided by OpenWeatherMap. When you use the weather widget, your location is sent to OpenWeatherMap to retrieve weather data. This is subject to <a href="https://openweathermap.org/privacy-policy" target="_blank">OpenWeatherMap's Privacy Policy</a>.</p>
+
+                <h2>Permissions Explained</h2>
+                <p>Saint John requests the following permissions to provide its features:</p>
+                <ul>
+                    <li><strong>Internet:</strong> Required to fetch weather data and communicate with AI providers</li>
+                    <li><strong>Location:</strong> Optional - Used only for weather widget functionality</li>
+                    <li><strong>Calendar:</strong> Optional - Used to read and display your calendar events in the widget</li>
+                    <li><strong>Usage Stats:</strong> Optional - Used to display app usage insights</li>
+                    <li><strong>Query All Packages:</strong> Required for launcher functionality to display installed apps</li>
+                </ul>
+                <p>All permissions except Internet and Query All Packages are optional. You can skip them during onboarding and the app will continue to function without those features.</p>
+
+                <h2>Data Security</h2>
+                <p>All data stored by Saint John is kept locally on your device using Android's secure storage mechanisms:</p>
+                <ul>
+                    <li>API keys are stored using Android's encrypted DataStore</li>
+                    <li>Conversation history is stored in a local SQLite database</li>
+                    <li>No data is transmitted to our servers</li>
+                    <li>Your data is protected by your device's security measures (screen lock, encryption, etc.)</li>
+                </ul>
+
+                <h2>Data Retention</h2>
+                <p>Since all data is stored locally on your device:</p>
+                <ul>
+                    <li>Data persists until you uninstall the app or clear app data</li>
+                    <li>You can delete individual conversations from within the app</li>
+                    <li>Uninstalling Saint John will completely remove all stored data</li>
+                </ul>
+
+                <h2>Open Source</h2>
+                <p>Saint John's code is open source and available for review. You can verify our privacy claims by examining the source code at <a href="https://github.com/jonaylor89/SaintJohn" target="_blank">our GitHub repository</a>.</p>
+
+                <h2>Contact Us</h2>
+                <p>If you have any questions about this Privacy Policy or Saint John's privacy practices, please contact us:</p>
+                <ul>
+                    <li><strong>Email:</strong> <a href="mailto:jonaylor89@gmail.com">jonaylor89@gmail.com</a></li>
+                    <li><strong>Website:</strong> <a href="https://jonaylor.com" target="_blank">jonaylor.com</a></li>
+                </ul>
+
+                <h2>Your Rights</h2>
+                <p>Since all data is stored locally on your device and we do not collect or store any data on our servers:</p>
+                <ul>
+                    <li>You have complete control over your data</li>
+                    <li>You can delete your data at any time by clearing app data or uninstalling the app</li>
+                    <li>No data requests or account deletions are necessary as we don't store your data</li>
+                </ul>
+
+                <h2>Summary</h2>
+                <p><strong>Saint John is privacy-first by design.</strong> We don't collect, store, or transmit any of your personal data. Everything stays on your device. You're in control.</p>
+            </div>
+        </div>
+    </section>
+</BaseLayout>
