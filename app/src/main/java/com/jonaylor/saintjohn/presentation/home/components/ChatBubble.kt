@@ -54,7 +54,12 @@ import androidx.compose.ui.unit.sp
 import com.jonaylor.saintjohn.domain.model.Message
 import com.jonaylor.saintjohn.domain.model.MessageImage
 import com.jonaylor.saintjohn.domain.model.MessageRole
+import com.jonaylor.saintjohn.domain.model.MessageSource
 import com.jonaylor.saintjohn.domain.model.ToolCall
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.Surface
+import androidx.compose.ui.platform.LocalUriHandler
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.delay
@@ -172,6 +177,12 @@ fun ChatBubble(
                                     fontSize = 14.sp
                                 )
                             }
+                        }
+
+                        // Show sources if present
+                        if (isAssistant && message.sources.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SourcesSection(sources = message.sources)
                         }
                     }
 
@@ -542,6 +553,66 @@ private fun ToolCallsSection(toolCalls: List<ToolCall>) {
                     color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f),
                     fontSize = 11.sp
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SourcesSection(sources: List<MessageSource>) {
+    val uriHandler = LocalUriHandler.current
+    
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = "Sources",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+        )
+        
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            sources.forEach { source ->
+                Surface(
+                    modifier = Modifier.clickable {
+                        try {
+                            uriHandler.openUri(source.url)
+                        } catch (e: Exception) {
+                            // URL failed to open
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "[${source.index}]",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = source.title ?: source.url.take(30),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
         }
     }

@@ -32,6 +32,8 @@ class PreferencesManager @Inject constructor(@ApplicationContext private val con
         val SELECTED_ANTHROPIC_MODEL = stringPreferencesKey("selected_anthropic_model")
         val SELECTED_GOOGLE_MODEL = stringPreferencesKey("selected_google_model")
         val SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
+        val TAVILY_API_KEY = stringPreferencesKey("tavily_api_key")
+        val SHOW_TOOL_RESULTS = booleanPreferencesKey("show_tool_results")
 
         const val DEFAULT_SYSTEM_PROMPT = """You are a helpful assistant integrated into an Android launcher. You're speaking directly to the user on their phone.
 
@@ -53,8 +55,14 @@ You HAVE access to the user's phone via tools. You can:
 - Get current weather (use `get_weather`)
 - Create quick notes (use `create_note`)
 - Check calendar events (use `get_calendar_events`)
+- Search the web (use `web_search`)
 
 If the user asks to do something you have a tool for, USE THE TOOL IMMEDIATELY. Do not say you cannot do it or that you don't have access. You have full access via the provided tools.
+
+When using web_search results:
+- Cite sources using bracketed indices like [1] or [2] inline in your response
+- Only cite indices that exist in the search results
+- Be concise and synthesize information from multiple sources when relevant
 
 Example: If the user says "Open Chrome", you must call the `launch_app` tool. Do not reply with text first.
 
@@ -188,6 +196,26 @@ Match the user's energy and formality. If they're casual, be casual. If they're 
     suspend fun setSystemPrompt(prompt: String) {
         context.dataStore.edit { preferences ->
             preferences[SYSTEM_PROMPT] = prompt
+        }
+    }
+
+    val tavilyApiKey: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[TAVILY_API_KEY] ?: ""
+    }
+
+    suspend fun setTavilyApiKey(key: String) {
+        context.dataStore.edit { preferences ->
+            preferences[TAVILY_API_KEY] = key
+        }
+    }
+
+    val showToolResults: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SHOW_TOOL_RESULTS] ?: false
+    }
+
+    suspend fun setShowToolResults(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_TOOL_RESULTS] = show
         }
     }
 }

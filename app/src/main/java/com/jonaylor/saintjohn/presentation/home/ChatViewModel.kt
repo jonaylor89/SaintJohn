@@ -19,6 +19,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.jonaylor.saintjohn.domain.agent.SkillRegistry
 import com.jonaylor.saintjohn.domain.model.MessageRole
+import com.jonaylor.saintjohn.domain.model.MessageSource
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 data class ModelInfo(
     val name: String,
@@ -39,7 +42,8 @@ data class ChatUiState(
     val availableModels: List<ModelInfo> = emptyList(),
     val isLoadingModels: Boolean = false,
     val conversations: List<ConversationWithCount> = emptyList(),
-    val currentConversationId: Long? = null
+    val currentConversationId: Long? = null,
+    val showToolResults: Boolean = false
 )
 
 @HiltViewModel
@@ -61,6 +65,15 @@ class ChatViewModel @Inject constructor(
         loadMostRecentConversation()
         loadSelectedModel()
         loadConversations()
+        loadShowToolResults()
+    }
+
+    private fun loadShowToolResults() {
+        viewModelScope.launch {
+            preferencesManager.showToolResults.collect { show ->
+                _uiState.value = _uiState.value.copy(showToolResults = show)
+            }
+        }
     }
 
     private fun loadSelectedProvider() {
@@ -171,6 +184,8 @@ class ChatViewModel @Inject constructor(
     private suspend fun executeTools(conversationId: Long, message: Message) {
         _uiState.value = _uiState.value.copy(isLoading = true)
         
+        val collectedSources = mutableListOf<MessageSource>()
+        
         message.toolCalls.forEach { toolCall ->
             val skill = skillRegistry.getSkill(toolCall.name)
             val result = if (skill != null) {
@@ -183,15 +198,38 @@ class ChatViewModel @Inject constructor(
                 "Error: Skill '${toolCall.name}' not found."
             }
             
+            // Parse sources from web_search result
+            if (toolCall.name == "web_search") {
+                try {
+                    val gson = Gson()
+                    val resultJson = gson.fromJson(result, com.google.gson.JsonObject::class.java)
+                    val resultsArray = resultJson?.getAsJsonArray("results")
+                    resultsArray?.forEachIndexed { index, element ->
+                        val obj = element.asJsonObject
+                        collectedSources.add(
+                            MessageSource(
+                                index = index + 1,
+                                url = obj.get("url")?.asString ?: "",
+                                title = obj.get("title")?.asString,
+                                snippet = obj.get("content")?.asString?.take(300)
+                            )
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Failed to parse sources, continue without them
+                }
+            }
+            
             chatRepository.sendToolResult(conversationId, toolCall.id, result)
         }
         
-        // Continue conversation
+        // Continue conversation with sources
         chatRepository.sendMessageStreaming(
             conversationId = conversationId,
             content = null, // Continue without user input
             provider = _uiState.value.selectedProvider,
-            onChunk = { } // No-op, UI updates from DB flow
+            onChunk = { }, // No-op, UI updates from DB flow
+            sources = collectedSources
         )
         
         _uiState.value = _uiState.value.copy(isLoading = false)
@@ -250,16 +288,26 @@ class ChatViewModel @Inject constructor(
         return preferencesManager.systemPrompt.firstOrNull() ?: ""
     }
 
-    suspend fun saveSettings(openaiKey: String, anthropicKey: String, googleKey: String, systemPrompt: String) {
+    suspend fun getTavilyKey(): String {
+        return preferencesManager.tavilyApiKey.firstOrNull() ?: ""
+    }
+
+    suspend fun getShowToolResults(): Boolean {
+        return preferencesManager.showToolResults.firstOrNull() ?: false
+    }
+
+    suspend fun saveSettings(openaiKey: String, anthropicKey: String, googleKey: String, tavilyKey: String, systemPrompt: String, showToolResults: Boolean) {
         preferencesManager.setOpenAIApiKey(openaiKey)
         preferencesManager.setAnthropicApiKey(anthropicKey)
         preferencesManager.setGoogleApiKey(googleKey)
+        preferencesManager.setTavilyApiKey(tavilyKey)
         preferencesManager.setSystemPrompt(systemPrompt)
+        preferencesManager.setShowToolResults(showToolResults)
     }
 
-    @Deprecated("Use saveSettings instead", ReplaceWith("saveSettings(openaiKey, anthropicKey, googleKey, \"\")"))
+    @Deprecated("Use saveSettings instead", ReplaceWith("saveSettings(openaiKey, anthropicKey, googleKey, \"\", \"\", false)"))
     suspend fun saveApiKeys(openaiKey: String, anthropicKey: String, googleKey: String) {
-        saveSettings(openaiKey, anthropicKey, googleKey, "")
+        saveSettings(openaiKey, anthropicKey, googleKey, "", "", false)
     }
 
     private fun loadSelectedModel() {

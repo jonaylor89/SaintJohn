@@ -5,11 +5,13 @@ import com.jonaylor.saintjohn.data.repository.CalendarRepositoryImpl
 import com.jonaylor.saintjohn.data.repository.ChatRepositoryImpl
 import com.jonaylor.saintjohn.data.repository.NoteRepositoryImpl
 import com.jonaylor.saintjohn.data.repository.WeatherRepositoryImpl
+import com.jonaylor.saintjohn.data.repository.WebSearchRepositoryImpl
 import com.jonaylor.saintjohn.domain.repository.AppRepository
 import com.jonaylor.saintjohn.domain.repository.CalendarRepository
 import com.jonaylor.saintjohn.domain.repository.ChatRepository
 import com.jonaylor.saintjohn.domain.repository.NoteRepository
 import com.jonaylor.saintjohn.domain.repository.WeatherRepository
+import com.jonaylor.saintjohn.domain.repository.WebSearchRepository
 import com.jonaylor.saintjohn.domain.usecase.AppCategorizationUseCase
 import dagger.Binds
 import dagger.Module
@@ -45,6 +47,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAppLauncher(impl: com.jonaylor.saintjohn.data.repository.AppLauncherImpl): com.jonaylor.saintjohn.domain.repository.AppLauncher
+
+    @Binds
+    @Singleton
+    abstract fun bindWebSearchRepository(impl: WebSearchRepositoryImpl): WebSearchRepository
 }
 
 @Module

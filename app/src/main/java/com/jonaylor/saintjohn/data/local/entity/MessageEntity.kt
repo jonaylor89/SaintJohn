@@ -16,5 +16,6 @@ data class MessageEntity(
     val thinkingSummary: String? = null,
     val imagesJson: String? = null, // JSON array of {data, mimeType} objects
     val toolCallsJson: String? = null, // JSON array of ToolCall objects
-    val toolResultJson: String? = null // JSON object of ToolResult
+    val toolResultJson: String? = null, // JSON object of ToolResult
+    val sourcesJson: String? = null
 )

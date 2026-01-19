@@ -3,6 +3,7 @@ package com.jonaylor.saintjohn.di
 import com.jonaylor.saintjohn.data.remote.AnthropicApi
 import com.jonaylor.saintjohn.data.remote.GeminiApi
 import com.jonaylor.saintjohn.data.remote.OpenAIApi
+import com.jonaylor.saintjohn.data.remote.TavilyApi
 import com.jonaylor.saintjohn.data.remote.WeatherApi
 import dagger.Module
 import dagger.Provides
@@ -101,5 +102,22 @@ object NetworkModule {
     @Singleton
     fun provideAnthropicApi(@Named("anthropic") retrofit: Retrofit): AnthropicApi {
         return retrofit.create(AnthropicApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    @Named("tavily")
+    fun provideTavilyRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(TavilyApi.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideTavilyApi(@Named("tavily") retrofit: Retrofit): TavilyApi {
+        return retrofit.create(TavilyApi::class.java)
     }
 }

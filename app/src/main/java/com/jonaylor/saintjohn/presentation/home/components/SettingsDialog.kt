@@ -18,25 +18,33 @@ fun SettingsBottomSheet(
     openaiKey: String,
     anthropicKey: String,
     googleKey: String,
+    tavilyKey: String,
     systemPrompt: String,
+    showToolResults: Boolean,
     onOpenAIKeyChange: (String) -> Unit,
     onAnthropicKeyChange: (String) -> Unit,
     onGoogleKeyChange: (String) -> Unit,
+    onTavilyKeyChange: (String) -> Unit,
     onSystemPromptChange: (String) -> Unit,
+    onShowToolResultsChange: (Boolean) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
     var localOpenAIKey by remember { mutableStateOf(openaiKey) }
     var localAnthropicKey by remember { mutableStateOf(anthropicKey) }
     var localGoogleKey by remember { mutableStateOf(googleKey) }
+    var localTavilyKey by remember { mutableStateOf(tavilyKey) }
     var localSystemPrompt by remember { mutableStateOf(systemPrompt) }
+    var localShowToolResults by remember { mutableStateOf(showToolResults) }
 
     // Update local state when props change (e.g., when dialog reopens with new values)
-    LaunchedEffect(openaiKey, anthropicKey, googleKey, systemPrompt) {
+    LaunchedEffect(openaiKey, anthropicKey, googleKey, tavilyKey, systemPrompt, showToolResults) {
         localOpenAIKey = openaiKey
         localAnthropicKey = anthropicKey
         localGoogleKey = googleKey
+        localTavilyKey = tavilyKey
         localSystemPrompt = systemPrompt
+        localShowToolResults = showToolResults
     }
 
     ModalBottomSheet(
@@ -95,6 +103,16 @@ fun SettingsBottomSheet(
                     placeholder = "AIza..."
                 )
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Tavily API Key
+                ApiKeyField(
+                    label = "Tavily API Key (Web Search)",
+                    value = localTavilyKey,
+                    onValueChange = { localTavilyKey = it },
+                    placeholder = "tvly-..."
+                )
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 HorizontalDivider()
@@ -136,6 +154,45 @@ fun SettingsBottomSheet(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                HorizontalDivider()
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Developer Options
+                Text(
+                    text = "Developer Options",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Show Tool Results",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Display raw tool call results in chat",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = localShowToolResults,
+                        onCheckedChange = { localShowToolResults = it }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
                 // Action buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -152,7 +209,9 @@ fun SettingsBottomSheet(
                             onOpenAIKeyChange(localOpenAIKey)
                             onAnthropicKeyChange(localAnthropicKey)
                             onGoogleKeyChange(localGoogleKey)
+                            onTavilyKeyChange(localTavilyKey)
                             onSystemPromptChange(localSystemPrompt)
+                            onShowToolResultsChange(localShowToolResults)
                             onSave()
                         }
                     ) {

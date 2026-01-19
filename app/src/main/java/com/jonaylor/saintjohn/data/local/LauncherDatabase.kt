@@ -125,6 +125,12 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
     }
 }
 
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE messages ADD COLUMN sourcesJson TEXT")
+    }
+}
+
 @Database(
     entities = [
         AppPreferenceEntity::class,
@@ -133,7 +139,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         ConversationEntity::class,
         MessageEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class LauncherDatabase : RoomDatabase() {

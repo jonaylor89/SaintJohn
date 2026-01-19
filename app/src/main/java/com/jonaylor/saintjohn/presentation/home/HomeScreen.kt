@@ -43,7 +43,9 @@ fun HomeScreen(
     var openaiKey by remember { mutableStateOf("") }
     var anthropicKey by remember { mutableStateOf("") }
     var googleKey by remember { mutableStateOf("") }
+    var tavilyKey by remember { mutableStateOf("") }
     var systemPrompt by remember { mutableStateOf("") }
+    var showToolResults by remember { mutableStateOf(false) }
 
     // Load API keys and system prompt when settings dialog opens
     LaunchedEffect(showSettings) {
@@ -51,7 +53,9 @@ fun HomeScreen(
             openaiKey = viewModel.getOpenAIKey()
             anthropicKey = viewModel.getAnthropicKey()
             googleKey = viewModel.getGoogleKey()
+            tavilyKey = viewModel.getTavilyKey()
             systemPrompt = viewModel.getSystemPrompt()
+            showToolResults = viewModel.getShowToolResults()
         }
     }
 
@@ -155,13 +159,20 @@ fun HomeScreen(
                     )
                 }
             } else {
+                // Filter out TOOL messages unless showToolResults is enabled
+                val displayMessages = if (uiState.showToolResults) {
+                    uiState.messages
+                } else {
+                    uiState.messages.filter { it.role != com.jonaylor.saintjohn.domain.model.MessageRole.TOOL }
+                }
+                
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(uiState.messages, key = { it.id }) { message ->
+                    items(displayMessages, key = { it.id }) { message ->
                         ChatBubble(message = message)
                     }
                 }
@@ -185,15 +196,19 @@ fun HomeScreen(
                 openaiKey = openaiKey,
                 anthropicKey = anthropicKey,
                 googleKey = googleKey,
+                tavilyKey = tavilyKey,
                 systemPrompt = systemPrompt,
+                showToolResults = showToolResults,
                 onOpenAIKeyChange = { openaiKey = it },
                 onAnthropicKeyChange = { anthropicKey = it },
                 onGoogleKeyChange = { googleKey = it },
+                onTavilyKeyChange = { tavilyKey = it },
                 onSystemPromptChange = { systemPrompt = it },
+                onShowToolResultsChange = { showToolResults = it },
                 onDismiss = { showSettings = false },
                 onSave = {
                     coroutineScope.launch {
-                        viewModel.saveSettings(openaiKey, anthropicKey, googleKey, systemPrompt)
+                        viewModel.saveSettings(openaiKey, anthropicKey, googleKey, tavilyKey, systemPrompt, showToolResults)
                         showSettings = false
                     }
                 }

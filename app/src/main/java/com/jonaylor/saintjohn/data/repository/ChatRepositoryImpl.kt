@@ -38,6 +38,7 @@ import com.jonaylor.saintjohn.domain.model.MessageImage
 import com.jonaylor.saintjohn.domain.model.MessageRole
 import com.google.gson.reflect.TypeToken
 import com.jonaylor.saintjohn.domain.model.ToolResult
+import com.jonaylor.saintjohn.domain.model.MessageSource
 import com.jonaylor.saintjohn.domain.repository.ChatRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -263,7 +264,8 @@ class ChatRepositoryImpl @Inject constructor(
         conversationId: Long,
         content: String?,
         provider: LLMProvider,
-        onChunk: (String) -> Unit
+        onChunk: (String) -> Unit,
+        sources: List<MessageSource>
     ): Result<Message> {
         return try {
             // Save user message
@@ -834,9 +836,20 @@ class ChatRepositoryImpl @Inject constructor(
                 }
             }
 
+            // Update message with sources if provided
+            if (sources.isNotEmpty()) {
+                val currentMessage = messageDao.getMessageById(messageId)
+                if (currentMessage != null) {
+                    messageDao.updateMessage(
+                        currentMessage.copy(sourcesJson = Gson().toJson(sources))
+                    )
+                }
+            }
+            
             // Message was already inserted and updated during streaming
             // Just return the final version
-            Result.success(assistantMessage.copy(id = messageId, content = assistantContent).toDomainModel())
+            val finalMessage = messageDao.getMessageById(messageId) ?: assistantMessage.copy(id = messageId, content = assistantContent)
+            Result.success(finalMessage.toDomainModel())
         } catch (e: Exception) {
             val is404 = (e is retrofit2.HttpException && e.code() == 404) || 
                         e.message?.contains("404") == true
@@ -1081,6 +1094,15 @@ class ChatRepositoryImpl @Inject constructor(
             }
         }
 
+        val sources = sourcesJson?.let { json ->
+            try {
+                val type = object : TypeToken<List<MessageSource>>() {}.type
+                Gson().fromJson<List<MessageSource>>(json, type)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } ?: emptyList()
+
         return Message(
             id = id,
             conversationId = conversationId,
@@ -1092,7 +1114,8 @@ class ChatRepositoryImpl @Inject constructor(
             thinkingSummary = thinkingSummary,
             images = images,
             toolCalls = toolCalls,
-            toolResult = toolResult
+            toolResult = toolResult,
+            sources = sources
         )
     }
 

@@ -11,7 +11,8 @@ data class Message(
     val thinkingSummary: String? = null,
     val images: List<MessageImage> = emptyList(),
     val toolCalls: List<ToolCall> = emptyList(),
-    val toolResult: ToolResult? = null
+    val toolResult: ToolResult? = null,
+    val sources: List<MessageSource> = emptyList()
 )
 
 data class MessageImage(
