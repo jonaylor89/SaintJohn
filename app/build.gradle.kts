@@ -25,15 +25,22 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePropertiesFile = file("/Users/johannes/Repos/keys/key.properties")
-            if (keystorePropertiesFile.exists()) {
-                val keystoreProperties = Properties()
-                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-
-                storeFile = file(keystoreProperties["storeFile"].toString())
-                storePassword = keystoreProperties["storePassword"].toString()
-                keyAlias = keystoreProperties["keyAlias"].toString()
-                keyPassword = keystoreProperties["keyPassword"].toString()
+            val envKeystoreFile = System.getenv("KEYSTORE_FILE")
+            if (envKeystoreFile != null) {
+                storeFile = file(envKeystoreFile)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            } else {
+                val keystorePropertiesFile = file("/Users/johannes/Repos/keys/key.properties")
+                if (keystorePropertiesFile.exists()) {
+                    val keystoreProperties = Properties()
+                    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+                    storeFile = file(keystoreProperties["storeFile"].toString())
+                    storePassword = keystoreProperties["storePassword"].toString()
+                    keyAlias = keystoreProperties["keyAlias"].toString()
+                    keyPassword = keystoreProperties["keyPassword"].toString()
+                }
             }
         }
     }
@@ -41,7 +48,10 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
-            signingConfig = signingConfigs.getByName("release")
+            val releaseSigningConfig = signingConfigs.findByName("release")
+            if (releaseSigningConfig?.storeFile != null) {
+                signingConfig = releaseSigningConfig
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
