@@ -38,7 +38,6 @@ fonts/
 
 # dependencies
 node_modules/
-package-lock.json
 
 # logs
 npm-debug.log*
@@ -58,3 +57,6 @@ pnpm-debug.log*
 
 # Local Vercel folder
 .vercel
+
+# Local Cloudflare Workers folder
+.wrangler

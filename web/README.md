@@ -60,11 +60,35 @@ Replace with: Large phone mockups showing:
 
 ## Deployment
 
-This is a static site. Deploy to:
-- GitHub Pages
-- Netlify
-- Vercel
-- Any static hosting service
+This is a static Astro site configured for Cloudflare Workers Static Assets.
+
+### Cloudflare Workers
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Build the site:
+
+```bash
+npm run build
+```
+
+3. Preview it locally with Workers:
+
+```bash
+npm run preview:workers
+```
+
+4. Deploy it:
+
+```bash
+npm run deploy
+```
+
+The Workers config lives in `wrangler.jsonc` and serves the Astro build output from `./dist`.
 
 ## Local Testing
 
